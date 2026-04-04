@@ -1,0 +1,342 @@
+.header {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.header-mobile-toggle {
+  display: none;
+}
+
+.header-search {
+  position: relative;
+  width: 420px;
+  max-width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.header-search input {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-main);
+  padding: 0 60px 0 44px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  transition: all 0.25s ease;
+}
+
+.header-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--bg-card);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+  width: 100%;
+}
+
+.search-shortcut {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-family: inherit;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Notification */
+.notification-wrap, .profile-wrap {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #FF4757, #FF6B81);
+  border-radius: 50%;
+  border: 2px solid var(--bg-card);
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dropdown Panels */
+.dropdown-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.notif-panel {
+  width: 380px;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dropdown-header h4 {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.mark-read-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.notif-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.notif-item.unread {
+  background-color: rgba(108, 92, 231, 0.04);
+}
+
+.notif-icon-wrap {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.notif-icon-wrap.comment { background: linear-gradient(135deg, #4DA3FF, #6C5CE7); }
+.notif-icon-wrap.like { background: linear-gradient(135deg, #FF4757, #FF6B81); }
+.notif-icon-wrap.system { background: linear-gradient(135deg, #FF9F43, #FECA57); }
+
+.notif-content {
+  flex: 1;
+}
+
+.notif-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.notif-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: block;
+}
+
+.unread-dot {
+  min-width: 8px;
+  height: 8px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  margin-top: 6px;
+}
+
+.notif-view-all {
+  width: 100%;
+  padding: 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  border-top: 1px solid var(--border-light);
+  transition: background-color 0.15s;
+}
+
+.notif-view-all:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Profile Dropdown */
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px 4px 4px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.profile-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #E2E8F0;
+}
+
+.profile-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.profile-panel {
+  width: 260px;
+  padding: 0;
+}
+
+.profile-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.profile-panel-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--border-light);
+}
+
+.profile-panel-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.profile-panel-level {
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.profile-panel-menu {
+  padding: 8px;
+}
+
+.profile-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+  transition: background-color 0.15s;
+}
+
+.profile-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.profile-menu-item.logout {
+  color: #FF4757;
+}
+
+@media (max-width: 1024px) {
+  .header-search {
+    width: 240px;
+  }
+  .search-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+  }
+  .header-mobile-toggle {
+    display: block;
+  }
+  .header-search {
+    display: none;
+  }
+  .profile-name {
+    display: none;
+  }
+  .notif-panel {
+    width: calc(100vw - 32px);
+    right: -60px;
+  }
+}

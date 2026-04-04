@@ -1,0 +1,289 @@
+.right-panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.panel-widget {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+
+.panel-widget:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.widget-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  color: var(--text-main);
+}
+
+.text-secondary { color: var(--secondary); }
+.text-primary { color: var(--primary); }
+
+.widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.widget-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  transition: background-color 0.15s;
+}
+
+.widget-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.rank-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: center;
+}
+
+.rank-num.top {
+  color: var(--primary);
+}
+
+.trend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trend-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hot-badge {
+  margin-right: 4px;
+}
+
+.trend-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Schedule */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  position: relative;
+}
+
+.schedule-time {
+  width: 48px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.schedule-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--border-light);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.schedule-item.meal .schedule-dot {
+  background-color: #FF9F43;
+  box-shadow: 0 0 0 4px rgba(255, 159, 67, 0.2);
+}
+
+.schedule-item.after .schedule-dot {
+  background-color: var(--primary);
+}
+
+.schedule-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 64px;
+  top: 26px;
+  width: 2px;
+  height: calc(100% - 6px);
+  background-color: var(--border-light);
+}
+
+.schedule-event {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.schedule-item.meal .schedule-event {
+  font-weight: 700;
+  color: #FF9F43;
+}
+
+/* School Info / Meal */
+.school-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-badge {
+  display: inline-block;
+  background: var(--gradient);
+  color: white;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.meal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meal-info {
+  background-color: var(--bg-main);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.7;
+}
+
+.meal-label {
+  display: inline-block;
+  font-weight: 800;
+  color: var(--secondary);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+/* Rankings */
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: var(--bg-main);
+  border-radius: var(--radius-md);
+  transition: transform 0.15s;
+}
+
+.ranking-item:hover {
+  transform: translateX(4px);
+}
+
+.badge-rank {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 800;
+  color: white;
+}
+
+.rank-1 { background: linear-gradient(135deg, #FFD700, #FDB931); box-shadow: 0 4px 10px rgba(255, 215, 0, 0.4); }
+.rank-2 { background: linear-gradient(135deg, #C0C0C0, #8A8A8A); }
+.rank-3 { background: linear-gradient(135deg, #CD7F32, #A0522D); }
+.rank-4, .rank-5 { background-color: var(--border-light); color: var(--text-muted); font-size: 12px; }
+
+.ranking-avatar {
+  width: 30px;
+  height: 30px;
+  background-color: var(--border-light);
+  border-radius: 50%;
+}
+
+.ranking-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ranking-bar-wrap {
+  height: 4px;
+  background-color: var(--border-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.ranking-bar {
+  height: 100%;
+  background: var(--gradient);
+  border-radius: var(--radius-full);
+  transition: width 0.6s ease;
+}
+
+.ranking-points {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .right-panel {
+    width: 280px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .right-panel {
+    display: none;
+  }
+}
