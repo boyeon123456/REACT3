@@ -117,6 +117,25 @@ app.post('/api/users/:id/points', (req, res) => {
   });
 });
 
+// --- Timetable ---
+app.get('/api/timetable', (req, res) => {
+  const { grade = 1, class: cls = 1 } = req.query;
+  db.all(`SELECT * FROM timetable WHERE grade = ? AND class = ? ORDER BY day, period`, 
+    [grade, cls], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      // Group by day for convenience
+      const timetable = { '월': [], '화': [], '수': [], '목': [], '금': [] };
+      rows.forEach(row => {
+        if (timetable[row.day]) {
+          timetable[row.day].push(row);
+        }
+      });
+      
+      res.json(timetable);
+  });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
