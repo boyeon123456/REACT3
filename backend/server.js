@@ -136,6 +136,63 @@ app.get('/api/timetable', (req, res) => {
   });
 });
 
+// --- Meals ---
+const neisApi = require('./neisApi');
+let mealCache = { data: null, fetchDate: null };
+let monthlyMealCache = {}; // { '2026-4': { data: {...}, fetchDate: '...' } }
+
+app.get('/api/meals', async (req, res) => {
+  try {
+    const todayStr = new Date().toDateString();
+    
+    // If cache is empty or stale (from a previous day), update it
+    if (!mealCache.data || mealCache.fetchDate !== todayStr) {
+      const liveData = await neisApi.getWeeklyMeals();
+      if (Object.keys(liveData).length > 0) {
+        mealCache.data = liveData;
+        mealCache.fetchDate = todayStr;
+      } else {
+        // Fallback to mock data if API fails
+        const mockData = require('./mockData.json');
+        mealCache.data = mockData.mealsByDay;
+        mealCache.fetchDate = todayStr;
+      }
+    }
+    
+    res.json(mealCache.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/meals/month', async (req, res) => {
+  try {
+    const { year, month } = req.query;
+    if (!year || !month) {
+      return res.status(400).json({ error: 'year and month are required' });
+    }
+
+    const cacheKey = `${year}-${month}`;
+    const todayStr = new Date().toDateString();
+
+    if (!monthlyMealCache[cacheKey] || monthlyMealCache[cacheKey].fetchDate !== todayStr) {
+      const liveData = await neisApi.getMonthlyMeals(year, month);
+      
+      monthlyMealCache[cacheKey] = {
+        data: liveData,
+        fetchDate: todayStr
+      };
+      
+      // If API brings absolutely no data, we could inject some mock data for demonstration
+      // but realistically month view shouldn't just show 'Mon-Fri' repeated. Let's return what we have.
+    }
+
+    res.json(monthlyMealCache[cacheKey].data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);

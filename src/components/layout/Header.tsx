@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, Bell, Menu, Settings, LogOut, Check, MessageSquare, Heart, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 import './Header.css';
 
 const mockNotifications = [
@@ -10,7 +12,9 @@ const mockNotifications = [
   { id: 5, type: 'system', text: '새로운 미니게임이 추가되었습니다! 지금 확인해보세요.', time: '어제', read: true },
 ];
 
-export default function Header() {
+export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -38,13 +42,13 @@ export default function Header() {
   return (
     <header className="header glass-panel">
       <div className="header-mobile-toggle">
-        <button className="icon-button"><Menu size={20} /></button>
+        <button className="icon-button" onClick={toggleMobileMenu}><Menu size={20} /></button>
       </div>
 
       <div className="header-search">
         <Search size={18} className="search-icon" />
         <input type="text" placeholder="게시글, 댓글, 사용자 검색..." />
-        <kbd className="search-shortcut">⌘K</kbd>
+        <kbd className="search-shortcut">⌘</kbd>
       </div>
 
       <div className="header-actions">
@@ -58,7 +62,7 @@ export default function Header() {
             <div className="dropdown-panel notif-panel animate-fade-in">
               <div className="dropdown-header">
                 <h4>알림</h4>
-                <button className="mark-read-btn"><Check size={14}/> 모두 읽음</button>
+                <button className="mark-read-btn"><Check size={14} /> 모두 읽음</button>
               </div>
               <ul className="notif-list">
                 {mockNotifications.map(n => (
@@ -79,28 +83,39 @@ export default function Header() {
           )}
         </div>
 
-        <div className="profile-wrap" ref={profileRef}>
-          <div className="profile-btn" onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}>
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="프로필" className="profile-avatar" />
-            <span className="profile-name">학생1</span>
-          </div>
+        {user ? (
+          <div className="profile-wrap" ref={profileRef}>
+            <div className="profile-btn" onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}>
+              <div className="profile-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--primary)', color: 'white'}}>{user.name[0]}</div>
+              <span className="profile-name">{user.name}</span>
+            </div>
 
-          {showProfile && (
-            <div className="dropdown-panel profile-panel animate-fade-in">
-              <div className="profile-panel-header">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="프로필" className="profile-panel-avatar" />
-                <div>
-                  <p className="profile-panel-name">학생1 (2학년 3반)</p>
-                  <p className="profile-panel-level">Lv.4 열정학생 • 1,240P</p>
+            {showProfile && (
+              <div className="dropdown-panel profile-panel animate-fade-in">
+                <div className="profile-panel-header">
+                  <div className="profile-panel-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--primary)', color: 'white', width: '40px', height: '40px', borderRadius: '50%'}}>{user.name[0]}</div>
+                  <div>
+                    <p className="profile-panel-name">{user.name}</p>
+                    <p className="profile-panel-level">Lv.{user.level} {user.role === 'admin' ? '운영자' : '학생'} • {user.points?.toLocaleString()}P</p>
+                  </div>
+                </div>
+                <div className="profile-panel-menu">
+                  {user.role === 'admin' && (
+                    <button className="profile-menu-item" onClick={() => navigate('/admin')}><Settings size={16} /> 관리자 메뉴</button>
+                  )}
+                  <button className="profile-menu-item logout" onClick={logout}><LogOut size={16} /> 로그아웃</button>
                 </div>
               </div>
-              <div className="profile-panel-menu">
-                <button className="profile-menu-item"><Settings size={16}/> 설정</button>
-                <button className="profile-menu-item logout"><LogOut size={16}/> 로그아웃</button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <button className="login-btn" onClick={() => navigate('/login')} style={{
+            background: 'var(--primary)', color: 'white', border: 'none', padding: '8px 16px', 
+            borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+          }}>
+            로그인
+          </button>
+        )}
       </div>
     </header>
   );

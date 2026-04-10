@@ -77,6 +77,11 @@ export default function PostDetail() {
         created_at: Date.now()
       });
       await updateDoc(doc(db, 'posts', id!), { comments: increment(1) });
+      
+      if (user.role !== 'admin') {
+        await updateDoc(doc(db, 'users', user.id), { points: increment(5) });
+      }
+
       setCommentText('');
     } catch (err) {
       console.error(err);

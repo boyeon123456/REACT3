@@ -7,6 +7,7 @@ import WritePost from './pages/WritePost';
 import MiniGame from './pages/MiniGame';
 import MyPage from './pages/MyPage';
 import Admin from './pages/Admin';
+import MealPage from './pages/MealPage';
 import Login from './pages/Login';
 import './App.css';
 
@@ -21,6 +22,7 @@ function App() {
           <Route path="post/:id" element={<PostDetail />} />
           <Route path="write" element={<WritePost />} />
           <Route path="games" element={<MiniGame />} />
+          <Route path="meals" element={<MealPage />} />
           <Route path="mypage" element={<MyPage />} />
           <Route path="admin" element={<Admin />} />
           <Route path="*" element={<Navigate to="/" replace />} />

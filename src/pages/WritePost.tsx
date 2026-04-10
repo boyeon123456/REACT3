@@ -38,6 +38,13 @@ export default function WritePost() {
         comments: 0,
         created_at: Date.now()
       });
+
+      // 포인트 +10 증가
+      if (user.role !== 'admin') {
+        const { doc, updateDoc, increment } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'users', user.id), { points: increment(10) });
+      }
+
       alert('게시글이 등록되었습니다!');
       navigate('/board');
     } catch (err) {

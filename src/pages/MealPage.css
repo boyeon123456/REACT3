@@ -1,0 +1,335 @@
+.meal-page {
+  padding: 40px 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.meal-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.meal-header h1 {
+  font-size: 42px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.meal-header p {
+  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Calendar Container */
+.calendar-container {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 50px;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cal-nav-btn {
+  background: transparent;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-nav-btn:hover {
+  background: #f5f5f5;
+}
+
+.cal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+  font-weight: 500;
+  color: #333;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 16px;
+  padding: 30px;
+}
+
+.cal-weekday {
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+  color: #555;
+  padding-bottom: 16px;
+}
+
+.cal-weekday.sun { color: #ff4d4f; }
+.cal-weekday.sat { color: #4096ff; }
+
+.calendar-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  background-color: #fff;
+  color: #333;
+}
+
+.calendar-cell.sun .day-number { color: #ff4d4f; }
+.calendar-cell.sat .day-number { color: #4096ff; }
+
+.calendar-cell:not(.empty):hover {
+  border-color: #d9d9d9;
+  background-color: #fafafa;
+  transform: scale(1.02);
+}
+
+.calendar-cell.today {
+  border-color: #4096ff;
+  color: #4096ff;
+  border-width: 2px;
+}
+
+.calendar-cell.selected {
+  background-color: #2f80ed;
+  border-color: #2f80ed;
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
+
+.calendar-cell.selected .day-number {
+  color: #fff;
+}
+
+.day-number {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.meal-marker {
+  width: 6px;
+  height: 6px;
+  background-color: #FD79A8;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 8px;
+}
+
+.calendar-cell.selected .meal-marker {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.calendar-cell.empty {
+  border: none;
+  background-color: transparent;
+  cursor: default;
+}
+
+.calendar-loading {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  z-index: 20;
+}
+
+/* Modal Overlay */
+.meal-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.meal-modal-content {
+  background: var(--bg-card);
+  width: 90%;
+  max-width: 500px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+.meal-modal-header {
+  background: var(--bg-main);
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.meal-modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+}
+
+.meal-modal-body {
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.meal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meal-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--secondary);
+}
+
+.meal-type.breakfast { color: #f39c12; }
+.meal-type.dinner { color: #FF7675; }
+
+.menu-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-main);
+  background-color: var(--bg-main);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+}
+
+.meal-divider {
+  height: 1px;
+  background-color: var(--border-light);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .meal-page {
+    padding: 20px 10px;
+  }
+  
+  .meal-header h1 {
+    font-size: 28px;
+  }
+
+  .calendar-container {
+    margin-bottom: 20px;
+  }
+
+  .calendar-header {
+    padding: 16px;
+  }
+
+  .cal-title {
+    font-size: 20px;
+  }
+
+  .calendar-grid {
+    gap: 4px; /* 모바일에서는 간격을 꽉 조여야 요일이 안 넘침 */
+    padding: 12px;
+  }
+
+  .cal-weekday {
+    font-size: 14px;
+    padding-bottom: 8px;
+  }
+
+  .calendar-cell {
+    aspect-ratio: 1 / 1; /* 정사각형 유지 */
+    height: auto;
+    border-radius: 6px;
+  }
+
+  .day-number {
+    font-size: 15px; /* 모바일 화면에 맞춰 작게 */
+  }
+
+  .meal-marker {
+    width: 5px;
+    height: 5px;
+    bottom: 4px;
+  }
+}

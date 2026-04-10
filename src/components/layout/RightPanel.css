@@ -155,6 +155,36 @@
   color: #FF9F43;
 }
 
+.day-nav-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-btn {
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.nav-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.nav-btn:active {
+  transform: scale(0.9);
+}
+
 /* School Info / Meal */
 .school-info-card {
   display: flex;
@@ -186,6 +216,27 @@
   font-size: 13px;
   color: var(--text-main);
   line-height: 1.7;
+}
+
+.view-more-btn {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  padding: 10px;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.view-more-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .meal-label {

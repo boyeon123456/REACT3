@@ -12,12 +12,12 @@ const navItems = [
   { path: '/admin', label: '관리자', icon: ShieldAlert },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMenuOpen?: boolean, closeMobileMenu?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <Link to="/" className="sidebar-logo">
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+      <Link to="/" className="sidebar-logo" onClick={closeMobileMenu}>
         <div className="logo-icon">
           <Star size={18} />
         </div>
@@ -30,6 +30,7 @@ export default function Sidebar() {
             key={item.path}
             to={item.path}
             end={item.end}
+            onClick={closeMobileMenu}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <div className="nav-icon-wrap">

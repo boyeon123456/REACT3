@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+
 const dbPath = path.resolve(__dirname, 'schoolcom.db');
 const db = new sqlite3.Database(dbPath);
 
@@ -54,29 +55,9 @@ db.serialize(() => {
 
   // Insert Mock Timetable Data (Grades 1-3, Class 1)
   const days = ['월', '화', '수', '목', '금'];
-  const subjectsByGrade = {
-    1: {
-      '월': ['국어', '수학', '영어', '과학', '사회', '체육', '음악'],
-      '화': ['공통 사회1', '음악', '음악', '음악', '미술', '체육', '동아리'],
-      '수': ['과학', '사회', '수학', '영어', '국어', '창체'],
-      '목': ['영어', '국어', '수학', '과학', '체육', '도덕', '정보'],
-      '금': ['국어', '수학', '영어', '사회', '음악', '미술', '체육']
-    },
-    2: {
-      '월': ['수학', '영어', '국어', '사회', '과학', '음악', '체육'],
-      '화': ['영어', '국어', '수학', '미술', '과학', '동아리', '체육'],
-      '수': ['국어', '과학', '사회', '수학', '영어', '창체'],
-      '목': ['과학', '수학', '영어', '국어', '정보', '도덕', '체육'],
-      '금': ['영어', '사회', '국어', '수학', '체육', '음악', '미술']
-    },
-    3: {
-      '월': ['영어', '수학', '과학', '국어', '사회', '체육', '음악'],
-      '화': ['국어', '영어', '과학', '수학', '미술', '동아리', '체육'],
-      '수': ['사회', '국어', '수학', '영어', '과학', '창체'],
-      '목': ['수학', '과학', '영어', '국어', '도덕', '정보', '체육'],
-      '금': ['과학', '영어', '수학', '국어', '음악', '미술', '체육']
-    }
-  };
+  const mockData = require('./mockData.json');
+  const subjectsByGrade = mockData.subjectsByGrade;
+
 
   db.get(`SELECT COUNT(*) as count FROM timetable`, (err, row) => {
     if (row && row.count <= 35) { // If only 1st grade was added or empty
@@ -91,6 +72,9 @@ db.serialize(() => {
       });
     }
   });
+
+  // Meals are now handled dynamically in server.js rather than being stored statically in the database.
+
 
   // Insert Mock User
   db.run(`INSERT OR IGNORE INTO users (email, name, password, points, level) 

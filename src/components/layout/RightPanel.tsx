@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Flame, Trophy, Calendar, Clock } from 'lucide-react';
+import { Flame, Trophy, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { getWeeklyMeals } from '../../api/neisApi';
+import mockData from '../../data/timetable.json';
 import './RightPanel.css';
 
 // Static items removed as we now fetch from backend
@@ -10,8 +12,11 @@ import './RightPanel.css';
 export default function RightPanel() {
   const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
   const [topUsers, setTopUsers] = useState<any[]>([]);
-  const [timetable, setTimetable] = useState<any[]>([]);
-  const [currentDay, setCurrentDay] = useState('');
+  const [fullTimetable, setFullTimetable] = useState<any>(null);
+  const [viewDayIndex, setViewDayIndex] = useState(0);
+  const [fullMeals, setFullMeals] = useState<any>(null);
+  const [mealDayIndex, setMealDayIndex] = useState(0);
+  const daysKR = ['월', '화', '수', '목', '금'];
 
   useEffect(() => {
     const qPosts = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(5));
@@ -25,22 +30,31 @@ export default function RightPanel() {
       setTopUsers(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
     });
 
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
-    const today = days[new Date().getDay()];
-    setCurrentDay(today);
+    // Fetch timetable from static file
+    const grade1Data = mockData.subjectsByGrade['1'] as Record<string, string[]>;
+    const formattedTimetable: any = {};
+    for(const d in grade1Data) {
+      formattedTimetable[d] = grade1Data[d].map((subject: string, idx: number) => ({
+        period: idx + 1,
+        subject: subject
+      }));
+    }
+    setFullTimetable(formattedTimetable);
+    const day = new Date().getDay(); // 0(Sun) ~ 6(Sat)
+    let initialIdx = day - 1; // 0=Mon, 4=Fri
+    if (initialIdx < 0 || initialIdx > 4) initialIdx = 0; // Default Mon
+    setViewDayIndex(initialIdx);
 
-    // Fetch timetable from backend
-    fetch(`http://localhost:3000/api/timetable?grade=1&class=1`)
-      .then(res => res.json())
+    // Fetch meals from Neis API directly
+    getWeeklyMeals()
       .then(data => {
-        if (data[today]) {
-          setTimetable(data[today]);
-        } else if (today === '토' || today === '일') {
-          // Fallback to Monday for demo if it's weekend
-          setTimetable(data['월'] || []);
-        }
+        setFullMeals(data);
+        const day = new Date().getDay();
+        let initialIdx = day - 1;
+        if (initialIdx < 0 || initialIdx > 4) initialIdx = 0;
+        setMealDayIndex(initialIdx);
       })
-      .catch(err => console.error('Failed to fetch timetable:', err));
+      .catch(err => console.error('Failed to fetch meals:', err));
 
     return () => {
       unsubPosts();
@@ -54,6 +68,25 @@ export default function RightPanel() {
     if (rank === 3) return '🥉';
     return rank.toString();
   };
+
+  const handlePrevDay = () => {
+    setViewDayIndex(prev => (prev === 0 ? 4 : prev - 1));
+  };
+
+  const handleNextDay = () => {
+    setViewDayIndex(prev => (prev === 4 ? 0 : prev + 1));
+  };
+
+  const handlePrevMeal = () => {
+    setMealDayIndex(prev => (prev === 0 ? 4 : prev - 1));
+  };
+
+  const handleNextMeal = () => {
+    setMealDayIndex(prev => (prev === 4 ? 0 : prev + 1));
+  };
+
+  const currentViewData = fullTimetable ? fullTimetable[daysKR[viewDayIndex]] || [] : [];
+  const currentMeal = fullMeals ? fullMeals[daysKR[mealDayIndex]] : null;
 
   return (
     <aside className="right-panel">
@@ -78,14 +111,21 @@ export default function RightPanel() {
       </div>
 
       <div className="panel-widget">
-        <h3 className="widget-title">
-          <Clock size={18} className="text-secondary" /> 1학년 시간표 ({currentDay}요일)
+        <h3 className="widget-title" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={18} className="text-secondary" />
+            1학년 시간표 ({daysKR[viewDayIndex]}요일)
+          </div>
+          <div className="day-nav-btns">
+            <button className="nav-btn" onClick={handlePrevDay} title="이전 요일"><ChevronLeft size={16} /></button>
+            <button className="nav-btn" onClick={handleNextDay} title="다음 요일"><ChevronRight size={16} /></button>
+          </div>
         </h3>
         <div className="schedule-list">
-          {timetable.length === 0 ? (
+          {currentViewData.length === 0 ? (
             <div className="schedule-item">오늘 일정이 없습니다.</div>
           ) : (
-            timetable.map((item, i) => (
+            currentViewData.map((item: any, i: number) => (
               <div key={i} className={`schedule-item normal`}>
                 <span className="schedule-time">{item.period}교시</span>
                 <div className="schedule-dot"></div>
@@ -97,17 +137,27 @@ export default function RightPanel() {
       </div>
 
       <div className="panel-widget">
-        <h3 className="widget-title">
-          <Calendar size={18} className="text-secondary" /> 오늘의 급식
+        <h3 className="widget-title" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={18} className="text-secondary" /> 오늘의 급식 ({daysKR[mealDayIndex]}요일)
+          </div>
+          <div className="day-nav-btns">
+            <button className="nav-btn" onClick={handlePrevMeal} title="이전 요일"><ChevronLeft size={16} /></button>
+            <button className="nav-btn" onClick={handleNextMeal} title="다음 요일"><ChevronRight size={16} /></button>
+          </div>
         </h3>
         <div className="school-info-card">
-          <div className="date-badge">4월 4일 (목)</div>
           <div className="meal-section">
             <div className="meal-info">
               <span className="meal-label">🍚 중식</span>
-              <p>혼합잡곡밥<br />쇠고기미역국<br />돈육강정<br />배추김치<br />요구르트</p>
+              <p>{currentMeal?.lunch || '데이터가 없습니다.'}</p>
+            </div>
+            <div className="meal-info" style={{ marginTop: '8px' }}>
+              <span className="meal-label" style={{ color: '#FF7675' }}>🌙 석식</span>
+              <p>{currentMeal?.dinner || '데이터가 없습니다.'}</p>
             </div>
           </div>
+          <Link to="/meals" className="view-more-btn">자세히 보기</Link>
         </div>
       </div>
 

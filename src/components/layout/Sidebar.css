@@ -173,23 +173,18 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 70px;
-    padding: 16px 8px;
+    position: fixed;
+    left: -260px;
+    width: 260px;
+    z-index: 100;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 16px rgba(0,0,0,0.1);
   }
-  .logo-text, .nav-label, .nav-badge, .sidebar-user-card {
-    display: none;
+  
+  .sidebar.mobile-open {
+    left: 0;
   }
-  .sidebar-logo {
-    padding-bottom: 24px;
-    justify-content: center;
-  }
-  .nav-item {
-    justify-content: center;
-    padding: 12px 0;
-  }
-  .nav-item.active::before {
-    display: none;
-  }
+  
   .collapse-btn {
     display: none;
   }

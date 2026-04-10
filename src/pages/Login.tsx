@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Star, Mail, Lock, ArrowRight } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { useAuthStore } from '../store/authStore';
 import './Login.css';
 
 export default function Login() {
@@ -14,10 +15,27 @@ export default function Login() {
   const [name, setName] = useState('');
   const [errorMSG, setErrorMSG] = useState('');
 
+  const userLogin = useAuthStore(state => state.login);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMSG('');
     
+    // Dummy Admin Bypass
+    if (email === 'admin' && password === 'admin') {
+      userLogin({
+        id: 'admin_dummy_999',
+        email: 'admin@school.com',
+        name: '최고관리자',
+        points: 99999,
+        level: 99,
+        role: 'admin'
+      });
+      alert('관리자 모드로 접속했습니다.');
+      navigate('/admin');
+      return;
+    }
+
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
@@ -30,7 +48,7 @@ export default function Login() {
       }
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential') {
-        setErrorMSG('비밀번호가 틀렸거나 없는 이메일입니다.');
+        setErrorMSG('비밀번호가 틀렸거나 없는 이메일입니다. 테스트를 원하시면 아이디: admin, 비밀번호: admin 으로 로그인해보세요.');
       } else if (err.code === 'auth/email-already-in-use') {
         setErrorMSG('이미 가입된 이메일입니다.');
       } else {
