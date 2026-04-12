@@ -1,19 +1,107 @@
-import { useState, useRef } from 'react';
-import { Target, Dices, RotateCcw, Trophy } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Target, Dices, RotateCcw, Trophy, Zap, Calculator, Timer, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../firebase';
 import { doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import './MiniGame.css';
 
-function ClickGame({ addPoints }: { addPoints: (p: number) => void }) {
-  const [clicks, setClicks] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
-  const [started, setStarted] = useState(false);
-  const [finished, setFinished] = useState(false);
-  const timerRef = useRef<number | null>(null);
+// --- 반응 속도 테스트 ---
+function ReactionGame({ addPoints }: { addPoints: (p: number) => void }) {
+  const [status, setStatus] = useState<'idle' | 'waiting' | 'ready' | 'result'>('idle');
+  const [startTime, setStartTime] = useState(0);
+  const [result, setResult] = useState(0);
+  const timeoutRef = useRef<number | null>(null);
 
   const start = () => {
-    setClicks(0); setTimeLeft(10); setStarted(true); setFinished(false);
+    setStatus('waiting');
+    const delay = Math.floor(Math.random() * 3000) + 2000; // 2~5초
+    timeoutRef.current = window.setTimeout(() => {
+      setStatus('ready');
+      setStartTime(Date.now());
+    }, delay);
+  };
+
+  const handleClick = () => {
+    if (status === 'waiting') {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      alert('너무 빨라요! 초록색이 되면 누르세요.');
+      setStatus('idle');
+    } else if (status === 'ready') {
+      const diff = Date.now() - startTime;
+      setResult(diff);
+      setStatus('result');
+      
+      // 포인트 지급
+      let points = 20;
+      if (diff < 250) points = 100;
+      else if (diff < 350) points = 60;
+      else if (diff < 450) points = 40;
+      addPoints(points);
+    }
+  };
+
+  const reset = () => {
+    setStatus('idle');
+    setResult(0);
+  };
+
+  return (
+    <div className="game-play-area">
+      <div className="game-play-header">
+        <h3>⚡ 반응 속도 테스트</h3>
+        {status === 'ready' && <span className="game-timer pulse">지금!!</span>}
+      </div>
+      
+      <div 
+        className={`reaction-box ${status}`} 
+        onClick={handleClick}
+      >
+        {status === 'idle' && <button className="game-start-btn" onClick={(e) => { e.stopPropagation(); start(); }}>시작하기</button>}
+        {status === 'waiting' && <p>배경이 초록색이 되면 클릭하세요...</p>}
+        {status === 'ready' && <p>클릭!!!</p>}
+        {status === 'result' && (
+          <div className="game-result">
+            <p className="result-text">반응 속도: <strong>{result}ms</strong></p>
+            <p className="fortune-points">+{result < 250 ? 100 : result < 350 ? 60 : result < 450 ? 40 : 20}P 획득!</p>
+            <button className="game-retry-btn" onClick={reset}><RotateCcw size={16}/> 다시하기</button>
+          </div>
+        )}
+      </div>
+      <p className="game-hint">평균 속도는 약 250ms 내외입니다.</p>
+    </div>
+  );
+}
+
+// --- 산수 퀴즈 ---
+function MathGame({ addPoints }: { addPoints: (p: number) => void }) {
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [started, setStarted] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [currentProblem, setCurrentProblem] = useState<{ q: string, a: number, options: number[] } | null>(null);
+  const [lastResult, setLastResult] = useState<'correct' | 'wrong' | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  const generateProblem = useCallback(() => {
+    const n1 = Math.floor(Math.random() * 20) + 1;
+    const n2 = Math.floor(Math.random() * 20) + 1;
+    const isAdd = Math.random() > 0.5;
+    const answer = isAdd ? n1 + n2 : n1 - n2;
+    const q = isAdd ? `${n1} + ${n2}` : `${n1} - ${n2}`;
+    
+    // 오답 생성
+    const options = [answer];
+    while (options.length < 3) {
+      const off = Math.floor(Math.random() * 10) - 5;
+      const fake = answer + off;
+      if (!options.includes(fake)) options.push(fake);
+    }
+    setCurrentProblem({ q, a: answer, options: options.sort(() => Math.random() - 0.5) });
+  }, []);
+
+  const start = () => {
+    setScore(0); setTimeLeft(20); setStarted(true); setFinished(false);
+    generateProblem();
     timerRef.current = window.setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -26,74 +114,56 @@ function ClickGame({ addPoints }: { addPoints: (p: number) => void }) {
     }, 1000);
   };
 
-  const completeGame = () => {
-    const earned = Math.floor(clicks / 10);
-    if (earned > 0) addPoints(earned);
+  useEffect(() => {
+    if (finished) {
+      const earned = score * 5;
+      if (earned > 0) addPoints(earned);
+    }
+  }, [finished, score, addPoints]);
+
+  const handleAnswer = (choice: number) => {
+    if (choice === currentProblem?.a) {
+      setScore(s => s + 1);
+      setLastResult('correct');
+    } else {
+      setLastResult('wrong');
+    }
+    setTimeout(() => setLastResult(null), 300);
+    generateProblem();
   };
-
-  if (finished && timeLeft === 10) {}
-
-  const reset = () => { setClicks(0); setTimeLeft(10); setStarted(false); setFinished(false); };
 
   return (
     <div className="game-play-area">
       <div className="game-play-header">
-        <h3>⚡ 광클릭 레이스</h3>
+        <h3>🧮 산수 퀴즈</h3>
         <span className="game-timer">{timeLeft}초</span>
       </div>
-      <div className="click-display">
-        <span className="click-count">{clicks}</span>
-        <span className="click-label">클릭</span>
-      </div>
-      {!started && !finished && <button className="game-start-btn" onClick={start}>시작하기</button>}
-      {started && <button className="game-click-btn" onClick={() => {
-        setClicks(c => c + 1);
-        if (timeLeft === 0 && !finished) {
-           setFinished(true);
-           completeGame();
-        }
-      }}>클릭!</button>}
-      {finished && (
-        <div className="game-result">
-          <p className="result-text">🎉 결과: <strong>{clicks}회</strong></p>
-          <p className="fortune-points">+{Math.floor(clicks / 10)}P 획득!</p>
-          <button className="game-retry-btn" onClick={reset}><RotateCcw size={16}/> 다시하기</button>
+
+      {!started && !finished && (
+        <div className="math-start-area">
+          <p className="math-rules">제한 시간 내에 사칙연산을 푸세요!<br/>정답 당 5P가 지급됩니다.</p>
+          <button className="game-start-btn" onClick={start}>시작하기</button>
         </div>
       )}
-    </div>
-  );
-}
 
-function FortuneGame({ addPoints }: { addPoints: (p: number) => void }) {
-  const fortunes = [
-    { text: '오늘 하루 대박운! 모든 일이 잘 풀립니다 🌟', points: 100, grade: 'S' },
-    { text: '좋은 일이 생길 조짐! 기대해도 좋아요 ✨', points: 50, grade: 'A' },
-    { text: '평범한 하루가 될 거예요. 꾸준히 가봅시다 😊', points: 30, grade: 'B' },
-  ];
-  const [result, setResult] = useState<typeof fortunes[0] | null>(null);
-  const [spinning, setSpinning] = useState(false);
+      {started && currentProblem && (
+        <div className={`math-quiz-active ${lastResult}`}>
+          <div className="math-q-box">{currentProblem.q} = ?</div>
+          <div className="math-options">
+            {currentProblem.options.map(opt => (
+              <button key={opt} className="math-opt-btn" onClick={() => handleAnswer(opt)}>{opt}</button>
+            ))}
+          </div>
+          <div className="math-score">맞힌 개수: {score}</div>
+        </div>
+      )}
 
-  const draw = () => {
-    setSpinning(true); setResult(null);
-    setTimeout(() => {
-      const res = fortunes[Math.floor(Math.random() * fortunes.length)];
-      setResult(res);
-      addPoints(res.points);
-      setSpinning(false);
-    }, 1500);
-  };
-
-  return (
-    <div className="game-play-area">
-      <div className="game-play-header"><h3>🎲 오늘의 운세</h3></div>
-      {!result && !spinning && <button className="game-start-btn" onClick={draw}>운세 뽑기</button>}
-      {spinning && <div className="fortune-spinner"><Dices size={48} className="spin-icon" /></div>}
-      {result && (
-        <div className="fortune-result">
-          <div className={`fortune-grade grade-${result.grade}`}>{result.grade}</div>
-          <p className="fortune-text">{result.text}</p>
-          <p className="fortune-points">+{result.points}P 획득!</p>
-          <button className="game-retry-btn" onClick={() => setResult(null)}><RotateCcw size={16}/> 한번 더</button>
+      {finished && (
+        <div className="game-result">
+          <div className="result-icon-wrap"><Trophy size={48} className="text-primary" /></div>
+          <p className="result-text">🎉 {score} 문제 정답!</p>
+          <p className="fortune-points">+{score * 5}P 획득!</p>
+          <button className="game-retry-btn" onClick={() => { setFinished(false); }}><RotateCcw size={16}/> 다시하기</button>
         </div>
       )}
     </div>
@@ -102,6 +172,11 @@ function FortuneGame({ addPoints }: { addPoints: (p: number) => void }) {
 
 const games = [
   { id: 'fortune', title: '오늘의 운세 뽑기', desc: '하루 한 번! 내 운세와 포인트를 확인하세요.', icon: Dices, color: '#FF9F43', points: '+10~100P' },
+  { id: 'click', title: '광클릭 레이스', desc: '10초 동안 가장 많이 클릭한 사람이 승리!', icon: Target, color: '#0ABDE3', points: '클릭 수 비례' },
+  { id: 'reaction', title: '반응 속도 테스트', desc: '초록색이 보이면 클릭! 순발력을 측정하세요.', icon: Zap, color: '#6C5CE7', points: '속도별 최대 100P' },
+  { id: 'math', title: '산수 퀴즈', desc: '20초간 펼쳐지는 두뇌 풀기! 암산왕에 도전하세요.', icon: Calculator, color: '#FF4757', points: '문제당 5P' },
+];
+�� 한 번! 내 운세와 포인트를 확인하세요.', icon: Dices, color: '#FF9F43', points: '+10~100P' },
   { id: 'click', title: '광클릭 레이스', desc: '10초 동안 가장 많이 클릭한 사람이 승리!', icon: Target, color: '#0ABDE3', points: '클릭 수 비례' },
 ];
 

@@ -1,56 +1,61 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Star, Mail, Lock, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { Star, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useAuthStore } from '../store/authStore';
 import './Login.css';
 
 export default function Login() {
+  // ✅ 모든 훅을 최상단에 선언 (React Rules of Hooks)
   const navigate = useNavigate();
+  const { user, login: userLogin } = useAuthStore();
   const [isLogin, setIsLogin] = useState(true);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [errorMSG, setErrorMSG] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const userLogin = useAuthStore(state => state.login);
+  // 구글 리다이렉트 후 결과 처리
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) navigate('/');
+      })
+      .catch((err) => {
+        if (err.code !== 'auth/no-current-user') {
+          setErrorMSG(`구글 로그인 실패: ${err.message || err.code}`);
+        }
+      });
+  }, []);
+
+  // ✅ 훅 선언 이후에 조건부 렌더링 (올바른 순서)
+  if (user) return <Navigate to="/" replace />;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMSG('');
-    
-    // Dummy Admin Bypass
-    if (email === 'admin' && password === 'admin') {
-      userLogin({
-        id: 'admin_dummy_999',
-        email: 'admin@school.com',
-        name: '최고관리자',
-        points: 99999,
-        level: 99,
-        role: 'admin'
-      });
-      alert('관리자 모드로 접속했습니다.');
-      navigate('/admin');
-      return;
-    }
+
 
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
-        navigate('/');
+        // onAuthStateChanged 가 user 업데이트 후 if(user) Navigate 자동 이동
       } else {
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
-        alert('가입이 완료되었습니다!');
-        navigate('/');
+        // 마찬가지로 자동 이동
       }
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential') {
-        setErrorMSG('비밀번호가 틀렸거나 없는 이메일입니다. 테스트를 원하시면 아이디: admin, 비밀번호: admin 으로 로그인해보세요.');
+        setErrorMSG('비밀번호가 틀렸거나 없는 이메일입니다.');
       } else if (err.code === 'auth/email-already-in-use') {
         setErrorMSG('이미 가입된 이메일입니다.');
+      } else if (err.code === 'auth/weak-password') {
+        setErrorMSG('비밀번호는 6자 이상이어야 합니다.');
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMSG('이메일 형식이 올바르지 않습니다.');
       } else {
         setErrorMSG(err.message || '인증 오류가 발생했습니다.');
       }
@@ -59,10 +64,8 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/');
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: any) {
-      console.error(err);
       setErrorMSG(`구글 로그인 실패: ${err.message || err.code}`);
     }
   };
@@ -70,7 +73,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-pattern-bg"></div>
-      
+
       <div className="login-card-container animate-fade-in">
         <div className="login-brand">
           <Link to="/" className="login-logo-box">
@@ -86,8 +89,12 @@ export default function Login() {
         </div>
 
         <form className="login-form" onSubmit={handleAuth}>
-          {errorMSG && <div className="login-error-msg" style={{color: '#FF4757', fontSize: '13px', fontWeight: 'bold'}}>{errorMSG}</div>}
-          
+          {errorMSG && (
+            <div className="login-error-msg" style={{ color: '#FF4757', fontSize: '13px', fontWeight: 'bold' }}>
+              {errorMSG}
+            </div>
+          )}
+
           {!isLogin && (
             <div className="input-group">
               <label>이름 (닉네임/실명)</label>
@@ -111,12 +118,26 @@ export default function Login() {
             </div>
             <div className="input-wrapper">
               <Lock size={18} className="input-icon" />
-              <input type="password" placeholder="••••••••" required value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px', color: '#aaa', display: 'flex', alignItems: 'center' }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
           <button type="submit" className="login-submit-btn">
-            {isLogin ? '이메일로 로그인하기' : '가입하기'} <ArrowRight size={18} />
+            {isLogin ? '이메일로 로그인하기' : '회원가입하기'} <ArrowRight size={18} />
           </button>
         </form>
 
@@ -126,8 +147,8 @@ export default function Login() {
 
         <div className="social-login-group">
           <button type="button" className="test-login-btn" style={{
-            width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #EAECEF', 
-            background: '#fff', cursor: 'pointer', fontWeight: 'bold', display: 'flex', 
+            width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #EAECEF',
+            background: '#fff', cursor: 'pointer', fontWeight: 'bold', display: 'flex',
             alignItems: 'center', justifyContent: 'center', gap: '10px'
           }} onClick={handleGoogleLogin}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

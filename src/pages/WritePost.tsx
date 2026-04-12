@@ -1,21 +1,47 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ToggleLeft, ToggleRight, Image, PenLine, Hash, AlertTriangle } from 'lucide-react';
+import { ToggleLeft, ToggleRight, Image, PenLine, Hash, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import './WritePost.css';
 
 export default function WritePost() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const user = useAuthStore(state => state.user);
+  
   const [isAnon, setIsAnon] = useState(true);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('자유게시판');
+  
+  // Image Upload States
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const charCount = content.length;
   const maxChars = 5000;
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('파일 크기는 5MB를 초과할 수 없습니다.');
+        return;
+      }
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleSubmit = async () => {
     if (!title || !content) return;
@@ -25,14 +51,28 @@ export default function WritePost() {
       return;
     }
 
+    setIsUploading(true);
+
     try {
+      let imageUrl = null;
+
+      // 1. 이미지가 있으면 스토리지에 업로드
+      if (imageFile) {
+        const fileRef = ref(storage, `posts/${Date.now()}_${imageFile.name}`);
+        const uploadResult = await uploadBytes(fileRef, imageFile);
+        imageUrl = await getDownloadURL(uploadResult.ref);
+      }
+
       const authorName = isAnon ? '익명' : user.name;
+      
+      // 2. Firestore에 게시글 저장
       await addDoc(collection(db, 'posts'), {
         title, 
         content, 
         board: category, 
         author: authorName,
         author_id: user.id,
+        imageUrl, // 이미지 URL 추가
         likes: 0,
         views: 0,
         comments: 0,
@@ -50,6 +90,8 @@ export default function WritePost() {
     } catch (err) {
       console.error(err);
       alert('게시글 등록에 실패했습니다.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -87,6 +129,7 @@ export default function WritePost() {
             value={title}
             onChange={e => setTitle(e.target.value)}
             maxLength={100}
+            disabled={isUploading}
           />
           <span className="char-hint">{title.length}/100</span>
         </div>
@@ -98,6 +141,7 @@ export default function WritePost() {
             value={content}
             onChange={e => setContent(e.target.value)}
             maxLength={maxChars}
+            disabled={isUploading}
           ></textarea>
           <div className="textarea-footer">
             <div className="content-warning">
@@ -108,14 +152,47 @@ export default function WritePost() {
           </div>
         </div>
 
+        {/* 이미지 미리보기 구역 */}
+        {imagePreview && (
+          <div className="image-preview-container">
+            <div className="preview-wrapper">
+              <img src={imagePreview} alt="Preview" />
+              <button className="remove-preview" onClick={removeImage}>
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="write-actions-bar">
           <div className="media-actions">
-            <button className="media-btn"><Image size={18} /> 이미지</button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+            <button 
+              className={`media-btn ${imageFile ? 'has-file' : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              <Image size={18} /> {imageFile ? '이미지 변경' : '이미지 추가'}
+            </button>
           </div>
           <div className="submit-actions">
-            <button className="cancel-btn" onClick={() => navigate(-1)}>취소</button>
-            <button className={`submit-btn ${title && content ? 'ready' : ''}`} onClick={handleSubmit}>
-              <PenLine size={18} /> 등록하기
+            <button className="cancel-btn" onClick={() => navigate(-1)} disabled={isUploading}>취소</button>
+            <button 
+              className={`submit-btn ${title && content && !isUploading ? 'ready' : ''}`} 
+              onClick={handleSubmit}
+              disabled={isUploading || !title || !content}
+            >
+              {isUploading ? (
+                <><Loader2 size={18} className="animate-spin" /> 업로드 중...</>
+              ) : (
+                <><PenLine size={18} /> 등록하기</>
+              )}
             </button>
           </div>
         </div>

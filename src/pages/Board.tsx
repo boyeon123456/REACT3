@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image } from 'lucide-react';
 import FloatingAction from '../components/ui/FloatingAction';
 import { db } from '../firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -94,11 +94,16 @@ export default function Board() {
                 <span className="card-tag" style={{ color: tagColors[post.board] || 'var(--primary)' }}>{post.board}</span>
                 <span className="card-time">{formatDate(post.created_at)}</span>
               </div>
+              {post.imageUrl && (
+                <div className="card-thumb">
+                  <img src={post.imageUrl} alt="thumbnail" />
+                </div>
+              )}
               <h3 className="card-title">{post.title}</h3>
               <p className="card-content">{post.content}</p>
               <div className="card-bottom">
                 <div className="card-author-area">
-                  <div className="mini-avatar" style={{ backgroundColor: tagColors[post.board] || '#ccc' }}>{post.author[0]}</div>
+                  <div className="mini-avatar" style={{ backgroundColor: tagColors[post.board] || '#ccc' }}>{(post.author || '익명')[0]}</div>
                   <span className="card-author">{post.author}</span>
                 </div>
                 <div className="card-metrics">
@@ -116,6 +121,7 @@ export default function Board() {
             <Link to={`/post/${post.id}`} key={post.id} className="board-list-item" style={{ animationDelay: `${idx * 0.03}s` }}>
               <span className="bl-tag" style={{ color: tagColors[post.board] }}>{post.board}</span>
               <div className="bl-main">
+                {post.imageUrl && <Image size={14} className="bl-img-icon" />}
                 <h4 className="bl-title">{post.title}</h4>
                 <span className="bl-comment-count">[{post.comments}]</span>
               </div>

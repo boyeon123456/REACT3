@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import './Sidebar.css';
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
 
 export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMenuOpen?: boolean, closeMobileMenu?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useAuthStore();
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
@@ -25,7 +27,9 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
       </Link>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        {navItems
+          .filter(item => item.path !== '/admin' || user?.role === 'admin')
+          .map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -45,16 +49,7 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
       </nav>
 
       <div className="sidebar-footer">
-        {!collapsed && (
-          <div className="sidebar-user-card">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="sidebar-avatar" />
-            <div className="sidebar-user-info">
-              <span className="sidebar-username">학생1</span>
-              <span className="sidebar-level">Lv.4 열정학생</span>
-            </div>
-          </div>
-        )}
-        <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>
+        <button className="collapse-btn-v3" onClick={() => setCollapsed(!collapsed)} title={collapsed ? "펼치기" : "접기"}>
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>

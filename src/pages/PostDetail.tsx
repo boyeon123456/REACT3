@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MoreVertical, Heart, Share2, AlertOctagon, Bookmark, ThumbsUp, Send, Eye } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Heart, Share2, AlertOctagon, Bookmark, ThumbsUp, Send, Eye, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { db } from '../firebase';
-import { doc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, increment } from 'firebase/firestore';
+import { db, storage } from '../firebase';
+import { doc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, increment, deleteDoc } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import './PostDetail.css';
 
 export default function PostDetail() {
@@ -18,6 +20,7 @@ export default function PostDetail() {
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +92,31 @@ export default function PostDetail() {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!id || !post) return;
+
+    try {
+      // 1. 이미지가 있으면 스토리지에서 삭제
+      if (post.imageUrl) {
+        try {
+          const imageRef = ref(storage, post.imageUrl);
+          await deleteObject(imageRef);
+        } catch (storageErr) {
+          console.error('Storage deletion error:', storageErr);
+        }
+      }
+
+      // 2. Firestore에서 게시글 삭제
+      await deleteDoc(doc(db, 'posts', id));
+      
+      alert('게시글이 삭제되었습니다.');
+      navigate('/board');
+    } catch (err) {
+      console.error(err);
+      alert('게시글 삭제에 실패했습니다.');
+    }
+  };
+
   if (loading) return <div style={{padding: '40px', textAlign: 'center'}}>로딩 중...</div>;
   if (!post) return null;
 
@@ -99,6 +127,7 @@ export default function PostDetail() {
   };
 
   const isWriter = user && user.id === post.author_id;
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="post-detail-page animate-fade-in">
@@ -108,6 +137,11 @@ export default function PostDetail() {
         </button>
         <span className="detail-category">{post.board}</span>
         <div className="detail-header-actions">
+          {(isWriter || isAdmin) && (
+            <button className="icon-button delete-btn" onClick={() => setShowDeleteModal(true)} title="삭제">
+              <Trash2 size={20} />
+            </button>
+          )}
           <button className={`icon-button ${bookmarked ? 'bookmarked' : ''}`} onClick={() => setBookmarked(!bookmarked)}>
             <Bookmark size={20} fill={bookmarked ? 'var(--primary)' : 'none'} />
           </button>
@@ -131,6 +165,11 @@ export default function PostDetail() {
         </div>
 
         <div className="detail-body">
+          {post.imageUrl && (
+            <div className="post-image-content">
+              <img src={post.imageUrl} alt="post content" onClick={() => window.open(post.imageUrl, '_blank')} />
+            </div>
+          )}
           <p style={{whiteSpace: 'pre-wrap'}}>{post.content}</p>
         </div>
 
@@ -195,6 +234,17 @@ export default function PostDetail() {
           ))}
         </div>
       </section>
+
+      {/* 프리미엄 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="게시글 삭제"
+        message="정말로 이 게시글을 삭제하시겠습니까? 삭제된 게시글은 복구할 수 없습니다."
+        confirmText="삭제하기"
+        type="danger"
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, Settings, LogOut, Check, MessageSquare, Heart, Star } from 'lucide-react';
+import { Search, Bell, Menu, Settings, LogOut, Check, MessageSquare, Heart, Star, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import './Header.css';
@@ -86,24 +86,52 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
         {user ? (
           <div className="profile-wrap" ref={profileRef}>
             <div className="profile-btn" onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}>
-              <div className="profile-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--primary)', color: 'white'}}>{user.name[0]}</div>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.name} className="profile-avatar" />
+              ) : (
+                <div className="profile-avatar initial-avatar">{user.name[0]}</div>
+              )}
               <span className="profile-name">{user.name}</span>
             </div>
 
             {showProfile && (
               <div className="dropdown-panel profile-panel animate-fade-in">
                 <div className="profile-panel-header">
-                  <div className="profile-panel-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--primary)', color: 'white', width: '40px', height: '40px', borderRadius: '50%'}}>{user.name[0]}</div>
-                  <div>
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.name} className="profile-panel-avatar" />
+                  ) : (
+                    <div className="profile-panel-avatar initial-avatar-large">{user.name[0]}</div>
+                  )}
+                  <div className="profile-header-info">
                     <p className="profile-panel-name">{user.name}</p>
-                    <p className="profile-panel-level">Lv.{user.level} {user.role === 'admin' ? '운영자' : '학생'} • {user.points?.toLocaleString()}P</p>
+                    <p className="profile-panel-email">{user.email}</p>
                   </div>
                 </div>
+                
+                <div className="profile-panel-stats">
+                  <div className="panel-stat">
+                    <span className="stat-value">Lv.{user.level}</span>
+                    <span className="stat-label">레벨</span>
+                  </div>
+                  <div className="panel-stat">
+                    <span className="stat-value">{user.points?.toLocaleString()}</span>
+                    <span className="stat-label">포인트</span>
+                  </div>
+                </div>
+
                 <div className="profile-panel-menu">
+                  <button className="profile-menu-item" onClick={() => navigate('/mypage')}>
+                    <Settings size={16} /> 마이페이지
+                  </button>
                   {user.role === 'admin' && (
-                    <button className="profile-menu-item" onClick={() => navigate('/admin')}><Settings size={16} /> 관리자 메뉴</button>
+                    <button className="profile-menu-item" onClick={() => navigate('/admin')}>
+                      <Shield size={16} /> 관리자 패널
+                    </button>
                   )}
-                  <button className="profile-menu-item logout" onClick={logout}><LogOut size={16} /> 로그아웃</button>
+                  <div className="menu-divider"></div>
+                  <button className="profile-menu-item logout" onClick={logout}>
+                    <LogOut size={16} /> 로그아웃
+                  </button>
                 </div>
               </div>
             )}
