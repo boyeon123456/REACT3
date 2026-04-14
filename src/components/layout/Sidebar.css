@@ -32,13 +32,10 @@
 .logo-icon {
   min-width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  border-radius: 14px;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
 }
 
 .sidebar-nav {
@@ -126,13 +123,13 @@
     width: 260px;
     z-index: 100;
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 10px 0 30px rgba(0,0,0,0.05);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.05);
   }
-  
+
   .sidebar.mobile-open {
     left: 0;
   }
-  
+
   .collapse-btn-v3 {
     display: none;
   }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import './ConfirmModal.css';
 
@@ -31,7 +30,7 @@ export default function ConfirmModal({
         <button className="modal-close-btn" onClick={onClose}>
           <X size={20} />
         </button>
-        
+
         <div className="modal-header-icon">
           <div className={`icon-circle ${type}`}>
             <AlertCircle size={32} />

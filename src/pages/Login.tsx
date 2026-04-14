@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { Star, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useAuthStore } from '../store/authStore';
@@ -9,7 +9,7 @@ import './Login.css';
 export default function Login() {
   // ✅ 모든 훅을 최상단에 선언 (React Rules of Hooks)
   const navigate = useNavigate();
-  const { user, login: userLogin } = useAuthStore();
+  const { user } = useAuthStore();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,9 +77,8 @@ export default function Login() {
       <div className="login-card-container animate-fade-in">
         <div className="login-brand">
           <Link to="/" className="login-logo-box">
-            <Star size={28} />
+            <img src="src\assets\670483720_1443067160639588_6486915911126418629_n.png" alt="logo" width={180} height={50} ></img>
           </Link>
-          <h1 className="login-title">SchoolCom</h1>
           <p className="login-subtitle">우리 학교의 모든 것, 여기서 시작해볼까요?</p>
         </div>
 
@@ -131,7 +130,7 @@ export default function Login() {
                 onClick={() => setShowPassword(!showPassword)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px', color: '#aaa', display: 'flex', alignItems: 'center' }}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+
               </button>
             </div>
           </div>
@@ -152,10 +151,10 @@ export default function Login() {
             alignItems: 'center', justifyContent: 'center', gap: '10px'
           }} onClick={handleGoogleLogin}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.8 15.71 17.58V20.34H19.28C21.36 18.42 22.56 15.6 22.56 12.25Z" fill="#4285F4"/>
-              <path d="M12 23C14.97 23 17.46 22.02 19.28 20.34L15.71 17.58C14.73 18.24 13.48 18.66 12 18.66C9.13 18.66 6.71 16.73 5.8 14.13H2.12V16.98C3.94 20.59 7.68 23 12 23Z" fill="#34A853"/>
-              <path d="M5.8 14.13C5.57 13.43 5.44 12.73 5.44 12C5.44 11.27 5.57 10.57 5.8 9.87V7.02H2.12C1.37 8.52 0.94 10.22 0.94 12C0.94 13.78 1.37 15.48 2.12 16.98L5.8 14.13Z" fill="#FBBC05"/>
-              <path d="M12 5.34C13.62 5.34 15.06 5.89 16.21 6.99L19.35 3.85C17.46 2.09 14.97 1 12 1C7.68 1 3.94 3.41 2.12 7.02L5.8 9.87C6.71 7.27 9.13 5.34 12 5.34Z" fill="#EA4335"/>
+              <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.8 15.71 17.58V20.34H19.28C21.36 18.42 22.56 15.6 22.56 12.25Z" fill="#4285F4" />
+              <path d="M12 23C14.97 23 17.46 22.02 19.28 20.34L15.71 17.58C14.73 18.24 13.48 18.66 12 18.66C9.13 18.66 6.71 16.73 5.8 14.13H2.12V16.98C3.94 20.59 7.68 23 12 23Z" fill="#34A853" />
+              <path d="M5.8 14.13C5.57 13.43 5.44 12.73 5.44 12C5.44 11.27 5.57 10.57 5.8 9.87V7.02H2.12C1.37 8.52 0.94 10.22 0.94 12C0.94 13.78 1.37 15.48 2.12 16.98L5.8 14.13Z" fill="#FBBC05" />
+              <path d="M12 5.34C13.62 5.34 15.06 5.89 16.21 6.99L19.35 3.85C17.46 2.09 14.97 1 12 1C7.68 1 3.94 3.41 2.12 7.02L5.8 9.87C6.71 7.27 9.13 5.34 12 5.34Z" fill="#EA4335" />
             </svg>
             구글 계정으로 로그인
           </button>

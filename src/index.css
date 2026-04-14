@@ -2,14 +2,15 @@
 
 :root {
   /* Brand Colors */
-  --primary: #6C5CE7;
+  --primary: #47bde8;
   --primary-light: #887df0;
   --primary-dark: #5b4cc4;
-  --gradient: linear-gradient(135deg, #6C5CE7 0%, #4DA3FF 100%);
+  --gradient: linear-gradient(135deg, #6c9fe2 0%, #15bbed 100%);
   --secondary: #4DA3FF;
 
   /* Neutrals */
-  --bg-main: #F7F8FA; /* Soft white/gray background */
+  --bg-main: #F7F8FA;
+  /* Soft white/gray background */
   --bg-card: #FFFFFF;
   --bg-sidebar: #FFFFFF;
   --text-main: #1C1C1E;
@@ -73,14 +74,22 @@ button {
   outline: none;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -117,13 +126,16 @@ ul, ol {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--border-light);
   border-radius: var(--radius-full);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }

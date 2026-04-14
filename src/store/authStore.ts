@@ -30,14 +30,14 @@ export const useAuthStore = create<AuthState>((set) => {
         const userRef = doc(db, 'users', fbUser.uid);
         const userSnap = await getDoc(userRef);
         const isAdmin = ADMIN_EMAILS.includes(fbUser.email || '');
-        
+
         if (userSnap.exists()) {
           const userData = userSnap.data() as User;
-          
+
           // 관리자 리스트가 변경되었을 경우Firestore 업데이트
-          if (userData.role !== (isAdmin ? 'admin' : userData.role)) {
-              await setDoc(userRef, { ...userData, role: isAdmin ? 'admin' : userData.role }, { merge: true });
-              userData.role = isAdmin ? 'admin' : userData.role;
+          if (userData.role !== (isAdmin ? 'admin' : 'user')) {
+            await setDoc(userRef, { ...userData, role: isAdmin ? 'admin' : userData.role }, { merge: true });
+            userData.role = isAdmin ? 'admin' : userData.role;
           }
 
           if (fbUser.photoURL && userData.photoURL !== fbUser.photoURL) {
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set) => {
             points: 0,
             level: 1,
             role: isAdmin ? 'admin' : 'user',
-            photoURL: fbUser.photoURL ?? null
+            photoURL: fbUser.photoURL ?? undefined
           };
           await setDoc(userRef, newUser);
           set({ user: newUser, loading: false });

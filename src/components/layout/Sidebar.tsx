@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import './Sidebar.css';
 
@@ -21,31 +21,30 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
       <Link to="/" className="sidebar-logo" onClick={closeMobileMenu}>
         <div className="logo-icon">
-          <Star size={18} />
+          <img src="src\assets\670483720_1443067160639588_6486915911126418629_n.png" alt="logo" width={180} height={50} ></img>
         </div>
-        {!collapsed && <span className="logo-text">SchoolCom</span>}
       </Link>
 
       <nav className="sidebar-nav">
         {navItems
           .filter(item => item.path !== '/admin' || user?.role === 'admin')
           .map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.end}
-            onClick={closeMobileMenu}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <div className="nav-icon-wrap">
-              <item.icon className="nav-icon" size={20} />
-            </div>
-            {!collapsed && <span className="nav-label">{item.label}</span>}
-            {!collapsed && item.path === '/games' && (
-              <span className="nav-badge">NEW</span>
-            )}
-          </NavLink>
-        ))}
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end}
+              onClick={closeMobileMenu}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <div className="nav-icon-wrap">
+                <item.icon className="nav-icon" size={20} />
+              </div>
+              {!collapsed && <span className="nav-label">{item.label}</span>}
+              {!collapsed && item.path === '/games' && (
+                <span className="nav-badge">NEW</span>
+              )}
+            </NavLink>
+          ))}
       </nav>
 
       <div className="sidebar-footer">
