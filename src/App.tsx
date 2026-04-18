@@ -12,10 +12,18 @@ import AdminRoute from './components/AdminRoute';
 import MealPage from './pages/MealPage';
 import Login from './pages/Login';
 import { useAuthStore } from './store/authStore';
+import { useThemeStore } from './store/themeStore';
+import { useEffect } from 'react';
 import './App.css';
 
 function App() {
   const { loading } = useAuthStore();
+  const theme = useThemeStore((state) => state.theme);
+
+  // 전역 테마 반영
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Firebase 인증 상태 확인 중 — 깜빡임 방지
   if (loading) {

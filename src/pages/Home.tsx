@@ -7,17 +7,13 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import './Home.css';
 
 const announcements = [
-  "📢 [필독] 2026학년도 체육대회 종목 안내",
   "🔐 교내 와이파이 비밀번호 변경 안내",
-  "📚 도서관 연체자 도서 대출 정지 안내",
   "🎉 미니게임 신규 업데이트! 운세뽑기 추가됨",
 ];
 
 const hotTopics = [
-  { keyword: '#체육대회', count: 128 },
-  { keyword: '#급식', count: 95 },
-  { keyword: '#중간고사', count: 87 },
-  { keyword: '#동아리', count: 64 },
+  { keyword: '없음', count: 0 },
+
 ];
 
 export default function Home() {
@@ -30,10 +26,10 @@ export default function Home() {
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
       setLatestPosts(data.slice(0, 8));
-      
+
       const sortedByLikes = [...data].sort((a, b) => (b.likes || 0) - (a.likes || 0));
       setPopularPosts(sortedByLikes.slice(0, 4));
-      
+
       setLoading(false);
     });
     return () => unsub();
@@ -79,10 +75,10 @@ export default function Home() {
           <h2 className="section-title"><TrendingUp size={22} /> <span className="text-gradient">인기 게시글</span></h2>
           <Link to="/board" className="view-more">더보기 <ChevronRight size={16} /></Link>
         </div>
-        
-        {loading ? <div style={{padding: '20px', color: '#888'}}>로딩 중...</div> : (
+
+        {loading ? <div style={{ padding: '20px', color: '#888' }}>로딩 중...</div> : (
           <div className="post-grid">
-            {popularPosts.length === 0 ? <p style={{color: '#888', gridColumn: 'span 2'}}>인기 게시글이 없습니다.</p> : popularPosts.map((post, idx) => (
+            {popularPosts.length === 0 ? <p style={{ color: '#888', gridColumn: 'span 2' }}>인기 게시글이 없습니다.</p> : popularPosts.map((post, idx) => (
               <Link to={`/post/${post.id}`} key={post.id} className="post-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                 <div className="card-accent" style={{ background: getTagColor(post.board) }}></div>
                 <div className="post-tag" style={{ backgroundColor: `${getTagColor(post.board)}18`, color: getTagColor(post.board) }}>{post.board}</div>
@@ -107,16 +103,16 @@ export default function Home() {
           <h2 className="section-title"><Clock size={22} className="text-primary" /> 최신 게시글</h2>
           <Link to="/board" className="view-more">더보기 <ChevronRight size={16} /></Link>
         </div>
-        {loading ? <div style={{padding: '20px', color: '#888'}}>로딩 중...</div> : (
+        {loading ? <div style={{ padding: '20px', color: '#888' }}>로딩 중...</div> : (
           <div className="post-list">
-            {latestPosts.length === 0 ? <div style={{padding: '20px', color: '#888'}}>작성된 글이 없습니다.</div> : latestPosts.map((post, idx) => (
+            {latestPosts.length === 0 ? <div style={{ padding: '20px', color: '#888' }}>작성된 글이 없습니다.</div> : latestPosts.map((post, idx) => (
               <Link to={`/post/${post.id}`} key={post.id} className="list-item" style={{ animationDelay: `${idx * 0.05}s` }}>
                 <div className="list-item-main">
-                  <span className="list-tag" style={{color: getTagColor(post.board)}}>{post.board}</span>
+                  <span className="list-tag" style={{ color: getTagColor(post.board) }}>{post.board}</span>
                   <h4 className="list-title">{post.title}</h4>
                 </div>
                 <div className="list-item-meta">
-                  <span className="list-comments" style={{color: 'var(--primary)'}}>[{post.comments}]</span>
+                  <span className="list-comments" style={{ color: 'var(--primary)' }}>[{post.comments}]</span>
                   <span className="list-time">{formatDate(post.created_at)}</span>
                 </div>
               </Link>

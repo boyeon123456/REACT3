@@ -16,10 +16,11 @@ export default function PostDetail() {
   const [post, setPost] = useState<any>(null);
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [replyTo, setReplyTo] = useState<{ id: string, author: string } | null>(null);
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function PostDetail() {
         content: commentText,
         author: user.name,
         author_id: user.id,
+        replyTo_id: replyTo ? replyTo.id : null,
         likes: 0,
         created_at: Date.now()
       });
@@ -86,9 +88,21 @@ export default function PostDetail() {
       }
 
       setCommentText('');
+      setReplyTo(null);
     } catch (err) {
       console.error(err);
       alert('댓글 게시에 실패했습니다.');
+    }
+  };
+
+  const handleCommentLike = async (commentId: string) => {
+    if (!user) return alert('로그인해주세요.');
+    if (likedComments.has(commentId)) return;
+    try {
+      setLikedComments(prev => new Set(prev).add(commentId));
+      await updateDoc(doc(db, 'posts', id!, 'comments', commentId), { likes: increment(1) });
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -171,6 +185,23 @@ export default function PostDetail() {
             </div>
           )}
           <p style={{whiteSpace: 'pre-wrap'}}>{post.content}</p>
+
+          {/* 해시태그 렌더링 섹션 */}
+          {post.tags && post.tags.length > 0 && (
+            <div className="post-tags-container" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '24px' }}>
+              {post.tags.map((tag: string, idx: number) => (
+                <span 
+                    key={idx} 
+                    onClick={() => navigate(`/board?search=${encodeURIComponent('#' + tag)}`)}
+                    style={{ background: 'var(--primary-light)', border: '1px solid var(--primary)', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="detail-actions">
@@ -194,6 +225,12 @@ export default function PostDetail() {
             {user ? user.name[0] : '?'}
           </div>
           <div className="comment-input-wrap">
+            {replyTo && (
+              <div style={{ background: 'var(--bg-main)', padding: '6px 12px', borderRadius: '8px 8px 0 0', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span><strong>{replyTo.author}</strong>님에게 답글 작성 중...</span>
+                <button onClick={() => setReplyTo(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 4px' }}>✕</button>
+              </div>
+            )}
             <input
               type="text"
               placeholder={user ? "댓글을 남겨보세요..." : "로그인 후 댓글을 남길 수 있습니다"}
@@ -202,6 +239,7 @@ export default function PostDetail() {
               onChange={(e) => setCommentText(e.target.value)}
               disabled={!user}
               onKeyDown={(e) => e.key === 'Enter' && handleComment()}
+              style={replyTo ? { borderRadius: '0 0 20px 20px' } : {}}
             />
             <button className={`submit-comment ${commentText ? 'active' : ''}`} onClick={handleComment}>
               <Send size={18} />
@@ -213,7 +251,7 @@ export default function PostDetail() {
           {commentsList.length === 0 ? (
             <div style={{padding: '20px', textAlign: 'center', color: '#888'}}>첫 번째 댓글을 남겨보세요!</div>
           ) : commentsList.map((comment: any) => (
-            <div key={comment.id} className="comment-thread">
+            <div key={comment.id} className="comment-thread" style={{ marginLeft: comment.replyTo_id ? '32px' : '0', borderLeft: comment.replyTo_id ? '2px solid var(--border-light)' : 'none', paddingLeft: comment.replyTo_id ? '16px' : '0' }}>
               <div className="comment-item">
                 <div className="comment-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--border-light)', color: 'var(--text-muted)'}}>{comment.author?.[0]}</div>
                 <div className="comment-body">
@@ -226,7 +264,12 @@ export default function PostDetail() {
                   </div>
                   <p className="comment-text">{comment.content}</p>
                   <div className="comment-actions">
-                    <button className="comment-btn like-btn"><ThumbsUp size={13} /> {comment.likes || 0}</button>
+                    <button className={`comment-btn like-btn ${likedComments.has(comment.id) ? 'active' : ''}`} onClick={() => handleCommentLike(comment.id)} style={likedComments.has(comment.id) ? { color: '#ff4757' } : {}}>
+                      <ThumbsUp size={13} fill={likedComments.has(comment.id) ? '#ff4757' : 'none'} /> {comment.likes || 0}
+                    </button>
+                    {!comment.replyTo_id && (
+                      <button className="comment-btn reply-btn" onClick={() => setReplyTo({ id: comment.id, author: comment.author })}>답글 달기</button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -34,15 +34,15 @@
 }
 
 [data-theme='dark'] {
-  --bg-main: #121212;
-  --bg-card: #1E1E1E;
-  --bg-sidebar: #1A1A1A;
-  --text-main: #F5F5F7;
-  --text-muted: #A1A1AA;
-  --border-light: #2D2D2D;
-  --bg-hover: #2A2A2A;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --bg-main: #18191a;
+  --bg-card: #242526;
+  --bg-sidebar: #242526;
+  --text-main: #e4e6eb;
+  --text-muted: #b0b3b8;
+  --border-light: #3a3b3c;
+  --bg-hover: #3a3b3c;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 * {

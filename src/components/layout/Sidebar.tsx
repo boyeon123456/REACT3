@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import logoImage from '../../assets/670483720_1443067160639588_6486915911126418629_n.png';
 import './Sidebar.css';
 
 const navItems = [
@@ -19,9 +20,19 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-      <Link to="/" className="sidebar-logo" onClick={closeMobileMenu}>
+      <Link to="/" className={`sidebar-logo ${collapsed ? 'collapsed' : ''}`} onClick={closeMobileMenu}>
         <div className="logo-icon">
-          <img src="src\assets\670483720_1443067160639588_6486915911126418629_n.png" alt="logo" width={180} height={50} ></img>
+          <img 
+            src={logoImage} 
+            alt="logo" 
+            style={{ 
+              width: collapsed ? 42 : 180, 
+              height: collapsed ? 42 : 50, 
+              objectFit: collapsed ? 'cover' : 'contain', 
+              objectPosition: 'left',
+              transition: 'all 0.3s'
+            }} 
+          />
         </div>
       </Link>
 

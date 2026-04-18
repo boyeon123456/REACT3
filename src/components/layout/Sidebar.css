@@ -27,6 +27,12 @@
   color: #0f172a;
   white-space: nowrap;
   letter-spacing: -1px;
+  transition: all 0.3s;
+}
+
+.sidebar-logo.collapsed {
+  padding: 0 0 40px 0;
+  justify-content: center;
 }
 
 .logo-icon {
@@ -133,4 +139,46 @@
   .collapse-btn-v3 {
     display: none;
   }
+}
+
+/* =========================================================
+   DARK THEME OVERRIDES FOR SIDEBAR
+   ========================================================= */
+[data-theme='dark'] .sidebar {
+  background-color: var(--bg-card);
+  border-right-color: var(--border-light);
+}
+
+[data-theme='dark'] .sidebar-logo {
+  color: var(--text-main);
+}
+
+[data-theme='dark'] .nav-item {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .nav-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+[data-theme='dark'] .nav-item.active {
+  background: rgba(59, 130, 246, 0.15); /* Soft transparent blue */
+  color: #60a5fa; /* Lighter blue */
+}
+
+[data-theme='dark'] .sidebar-footer {
+  border-top-color: var(--border-light);
+}
+
+[data-theme='dark'] .collapse-btn-v3 {
+  background: var(--bg-main);
+  border-color: var(--border-light);
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .collapse-btn-v3:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+  border-color: #52525b; /* Slightly lighter border on hover */
 }

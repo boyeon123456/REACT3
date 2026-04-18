@@ -5,11 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import './Header.css';
 
 const mockNotifications = [
-  { id: 1, type: 'comment', text: '익명3님이 회원님의 글에 댓글을 남겼습니다.', time: '3분 전', read: false },
-  { id: 2, type: 'like', text: '회원님의 게시글에 15명이 좋아요를 눌렀습니다.', time: '10분 전', read: false },
-  { id: 3, type: 'system', text: '[공지] 커뮤니티 이용 규칙이 업데이트 되었습니다.', time: '1시간 전', read: true },
-  { id: 4, type: 'comment', text: '익명7님이 회원님의 댓글에 답글을 남겼습니다.', time: '2시간 전', read: true },
-  { id: 5, type: 'system', text: '새로운 미니게임이 추가되었습니다! 지금 확인해보세요.', time: '어제', read: true },
+  { id: 1, type: 'comment', text: '첫 로그인!.', time: '3분 전', read: true },
 ];
 
 export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) {
@@ -107,7 +103,7 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
                     <p className="profile-panel-email">{user.email}</p>
                   </div>
                 </div>
-                
+
                 <div className="profile-panel-stats">
                   <div className="panel-stat">
                     <span className="stat-value">Lv.{user.level}</span>
@@ -138,7 +134,7 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
           </div>
         ) : (
           <button className="login-btn" onClick={() => navigate('/login')} style={{
-            background: 'var(--primary)', color: 'white', border: 'none', padding: '8px 16px', 
+            background: 'var(--primary)', color: 'white', border: 'none', padding: '8px 16px',
             borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
           }}>
             로그인

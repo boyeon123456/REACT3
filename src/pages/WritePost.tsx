@@ -16,11 +16,28 @@ export default function WritePost() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('자유게시판');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   
   // Image Upload States
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = tagInput.trim().replace(/^#/, '');
+      if (val && tags.length < 5 && !tags.includes(val)) {
+        setTags([...tags, val]);
+      }
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (index: number) => {
+    setTags(tags.filter((_, i) => i !== index));
+  };
 
   const charCount = content.length;
   const maxChars = 5000;
@@ -73,6 +90,7 @@ export default function WritePost() {
         author: authorName,
         author_id: user.id,
         imageUrl, // 이미지 URL 추가
+        tags, // 해시태그 추가
         likes: 0,
         views: 0,
         comments: 0,
@@ -150,6 +168,33 @@ export default function WritePost() {
             </div>
             <span className={`char-count ${charCount > maxChars * 0.9 ? 'warn' : ''}`}>{charCount.toLocaleString()}/{maxChars.toLocaleString()}</span>
           </div>
+        </div>
+
+        <div className="form-group tag-input-group">
+          <div className="tag-input-wrap">
+            <Hash size={16} className="tag-icon" />
+            <input
+              type="text"
+              className="input-field tag-input"
+              placeholder="태그를 입력하고 엔터를 누르세요 (최대 5개)"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              disabled={tags.length >= 5 || isUploading}
+            />
+          </div>
+          {tags.length > 0 && (
+            <div className="tags-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+              {tags.map((tag, idx) => (
+                <span key={idx} className="tag-chip" style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--primary-light)', padding: '4px 10px', borderRadius: '14px', fontSize: '13px', color: '#fff' }}>
+                  #{tag}
+                  <button onClick={() => removeTag(idx)} style={{ display: 'flex', marginLeft: '6px', color: '#fff', cursor: 'pointer' }}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 이미지 미리보기 구역 */}

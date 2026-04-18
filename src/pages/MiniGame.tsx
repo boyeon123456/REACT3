@@ -1,153 +1,47 @@
-import { useState, useRef } from 'react';
-import { Target, Dices, RotateCcw, Trophy, CircleGauge } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Target, Dices, RotateCcw, Trophy, CircleGauge, LayoutGrid, LocateFixed, Aperture, Grip, Atom, Eye, Box, RectangleEllipsis, Rows3, Grid2x2, ScrollText, Car } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../firebase';
 import { doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import './MiniGame.css';
+import FortuneGame from '../components/MiniGameComonents/fortune';
+import ClickGame from '../components/MiniGameComonents/click';
+import RouletteGame from '../components/MiniGameComonents/roulette';
+import { GaltonBoard } from '../components/MiniGameComonents/GaltonBoard';
+import CoinFlipGame from '../components/MiniGameComonents/coinflip';
+import DiceGame from '../components/MiniGameComonents/dice';
+import NumberGuessGame from '../components/MiniGameComonents/numberGuess';
+import SlotMachineGame from '../components/MiniGameComonents/slotMachine';
+import RockPaperScissorsGame from '../components/MiniGameComonents/rockPaperScissors';
+import GatchaGame from '../components/MiniGameComonents/gatcha';
+import NumberMemoryGame from '../components/MiniGameComonents/memoryGame';
+import BoxGame from '../components/MiniGameComonents/boxGame';
+import BakaraGame from '../components/MiniGameComonents/bakara';
+import LadderGame from '../components/MiniGameComonents/ladderGame';
+import MineSweeperGame from '../components/MiniGameComonents/mineSweeper';
+import QuizGame from '../components/MiniGameComonents/quiz';
+import CrossTheRoadGame from '../components/MiniGameComonents/crossTheRoad';
 
-function ClickGame({ addPoints }: { addPoints: (p: number) => void }) {
-  const [clicks, setClicks] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
-  const [started, setStarted] = useState(false);
-  const [finished, setFinished] = useState(false);
-  const timerRef = useRef<number | null>(null);
 
-  const start = () => {
-    setClicks(0); setTimeLeft(10); setStarted(true); setFinished(false);
-    timerRef.current = window.setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          setFinished(true); setStarted(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const completeGame = () => {
-    const earned = Math.floor(clicks / 10);
-    if (earned > 0) addPoints(earned);
-  };
-
-  if (finished && timeLeft === 10) { }
-
-  const reset = () => { setClicks(0); setTimeLeft(10); setStarted(false); setFinished(false); };
-
-  return (
-    <div className="game-play-area">
-      <div className="game-play-header">
-        <h3>⚡ 광클릭 레이스</h3>
-        <span className="game-timer">{timeLeft}초</span>
-      </div>
-      <div className="click-display">
-        <span className="click-count">{clicks}</span>
-        <span className="click-label">클릭</span>
-      </div>
-      {!started && !finished && <button className="game-start-btn" onClick={start}>시작하기</button>}
-      {started && <button className="game-click-btn" onClick={() => {
-        setClicks(c => c + 1);
-        if (timeLeft === 0 && !finished) {
-          setFinished(true);
-          completeGame();
-        }
-      }}>클릭!</button>}
-      {finished && (
-        <div className="game-result">
-          <p className="result-text">🎉 결과: <strong>{clicks}회</strong></p>
-          <p className="fortune-points">+{Math.floor(clicks / 10)}P 획득!</p>
-          <button className="game-retry-btn" onClick={reset}><RotateCcw size={16} /> 다시하기</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FortuneGame({ addPoints }: { addPoints: (p: number) => void }) {
-  const fortunes = [
-    { text: '오늘 하루 대박운! 모든 일이 잘 풀립니다 🌟', points: 100, grade: 'S' },
-    { text: '좋은 일이 생길 조짐! 기대해도 좋아요 ✨', points: 50, grade: 'A' },
-    { text: '평범한 하루가 될 거예요. 꾸준히 가봅시다 😊', points: 30, grade: 'B' },
-  ];
-  const [result, setResult] = useState<typeof fortunes[0] | null>(null);
-  const [spinning, setSpinning] = useState(false);
-
-  const draw = () => {
-    setSpinning(true); setResult(null);
-    setTimeout(() => {
-      const res = fortunes[Math.floor(Math.random() * fortunes.length)];
-      setResult(res);
-      addPoints(res.points);
-      setSpinning(false);
-    }, 1500);
-  };
-
-  return (
-    <div className="game-play-area">
-      <div className="game-play-header"><h3>🎲 오늘의 운세</h3></div>
-      {!result && !spinning && <button className="game-start-btn" onClick={draw}>운세 뽑기</button>}
-      {spinning && <div className="fortune-spinner"><Dices size={48} className="spin-icon" /></div>}
-      {result && (
-        <div className="fortune-result">
-          <div className={`fortune-grade grade-${result.grade}`}>{result.grade}</div>
-          <p className="fortune-text">{result.text}</p>
-          <p className="fortune-points">+{result.points}P 획득!</p>
-          <button className="game-retry-btn" onClick={() => setResult(null)}><RotateCcw size={16} /> 한번 더</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RouletteGame({ addPoints }: { addPoints: (p: number) => void }) {
-  const segments = [
-    { label: '꽝 😢', multiplier: 0 },
-    { label: '1배 🙂', multiplier: 1 },
-    { label: '2배 😄', multiplier: 2 },
-    { label: '3배 🎉', multiplier: 3 },
-    { label: '5배 🔥', multiplier: 5 },
-    { label: '10배 💎', multiplier: 10 },
-  ];
-  const [result, setResult] = useState<typeof segments[0] | null>(null);
-  const [spinning, setSpinning] = useState(false);
-  const BASE_POINTS = 10;
-
-  const spin = () => {
-    setSpinning(true); setResult(null);
-    setTimeout(() => {
-      const picked = segments[Math.floor(Math.random() * segments.length)];
-      setResult(picked);
-      const earned = BASE_POINTS * picked.multiplier;
-      if (earned > 0) addPoints(earned);
-      setSpinning(false);
-    }, 1500);
-  };
-
-  return (
-    <div className="game-play-area">
-      <div className="game-play-header"><h3>🎡 돌림판</h3></div>
-      {!result && !spinning && <button className="game-start-btn" onClick={spin}>돌리기!</button>}
-      {spinning && <div className="fortune-spinner"><CircleGauge size={48} className="spin-icon" /></div>}
-      {result && (
-        <div className="fortune-result">
-          <p className="fortune-text">{result.label}</p>
-          <p className="fortune-points">
-            {result.multiplier === 0 ? '아쉽네요...' : `+${BASE_POINTS * result.multiplier}P 획득!`}
-          </p>
-          <button className="game-retry-btn" onClick={() => setResult(null)}>
-            <RotateCcw size={16} /> 한번 더
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
+// --- 메인 미니게임 페이지 ---
 const games = [
   { id: 'fortune', title: '오늘의 운세 뽑기', desc: '하루 한 번! 내 운세와 포인트를 확인하세요.', icon: Dices, color: '#FF9F43', points: '+10~100P' },
   { id: 'click', title: '광클릭 레이스', desc: '10초 동안 가장 많이 클릭한 사람이 승리!', icon: Target, color: '#0ABDE3', points: '클릭 수 비례' },
-  { id: 'roulette', title: '돌림판', desc: '운을 시험해볼 시간!', icon: CircleGauge, color: '#e30a0aff', points: '1x~10x' },
+  { id: 'roulette', title: '돌림판', desc: '운을 시험해볼 시간!', icon: CircleGauge, color: '#E30A0A', points: '1x~10x' },
+  { id: 'GaltonBoard', title: '갈튼 보드', desc: '떨어지는 순간, 운과 확률이 결정된다!', icon: LayoutGrid, color: '#F39C12', points: '0x~50x' },
+  { id: 'coinflip', title: '동전 던지기', desc: '앞면? 뒷면? 50% 확률에 도전하세요!', icon: RotateCcw, color: '#98C1D9', points: '2배' },
+  { id: 'dice', title: '주사위 굴리기', desc: '주사위를 굴려 행운을 시험해보세요!', icon: Dices, color: '#2A9D8F', points: '+10~60P' },
+  { id: 'numberGuess', title: '숫자 맞추기', desc: '1부터 100까지! 숫자를 맞춰보세요!', icon: LocateFixed, color: '#ff0000ff', points: '+10~500P' },
+  { id: 'slotMachine', title: '슬롯머신', desc: '3개의 과일을 맞춰보세요!', icon: Aperture, color: '#FFD700', points: '0x~500x' },
+  { id: 'rockPaperScissors', title: '가위바위보', desc: '컴퓨터와 가위바위보를 해서 이겨보세요!', icon: Grip, color: '#00ffe1ff', points: '1x~2x' },
+  { id: 'gatcha', title: '가챠', desc: '자신의 뽑기 실력을 보여주세요!', icon: Atom, color: '#13a90eff', points: '랜덤 점수' },
+  { id: 'memoryGame', title: '기억력 게임', desc: '한순간에 기억력을 발휘해보세요!', icon: Eye, color: '#0c0fdfff', points: '정답 갯수 비례' },
+  { id: 'boxGame', title: '상자뽑기', desc: '상자를 열어 보세요!', icon: Box, color: '#ac702bff', points: '-100, -10, 5x, 10x' },
+  { id: 'bakara', title: '종이 컵뽑기', desc: '종이 컵을 고르시오!', icon: RectangleEllipsis, color: '#e2e2e2ff', points: '랜덤 점수' },
+  { id: 'ladderGame', title: '사다리타기', desc: '사다리를 타서 행운을 시험해보세요!', icon: Rows3, color: '#ac6527ff', points: '-10~100P' },
+  { id: 'mineSweeper', title: '지뢰찾기', desc: '지뢰를 찾아서 행운을 시험해보세요!', icon: Grid2x2, color: '#a9e413ff', points: '+200~1000P' },
+  { id: 'quiz', title: '퀴즈', desc: '퀴즈를 풀어보세요!', icon: ScrollText, color: '#b611edff', points: '+10~50P' },
+  { id: 'crossTheRoad', title: '길건너 친구들', desc: '길을 건너 친구에게 가보세요!', icon: Car, color: '#ff0000ff', points: '+10~500P' },
 ];
 
 export default function MiniGame() {
@@ -155,15 +49,16 @@ export default function MiniGame() {
   const loginFn = useAuthStore(state => state.login);
   const [activeGame, setActiveGame] = useState<string | null>(null);
 
-  const addPoints = async (amount: number) => {
+  const addPoints = useCallback(async (amount: number) => {
     if (!user) return;
     try {
       const userRef = doc(db, 'users', user.id);
       await updateDoc(userRef, { points: increment(amount) });
       const snap = await getDoc(userRef);
+
       if (snap.exists()) {
         const data = snap.data();
-        let newLevel = data.level;
+        let newLevel = 1;
         if (data.points > 1500) newLevel = 5;
         else if (data.points > 800) newLevel = 4;
         else if (data.points > 400) newLevel = 3;
@@ -175,14 +70,14 @@ export default function MiniGame() {
         loginFn({ ...user, points: data.points, level: newLevel });
       }
     } catch (err) {
-      console.error(err);
+      console.error('포인트 업데이트 실패:', err);
     }
-  };
+  }, [user, loginFn]);
 
   return (
     <div className="minigame-page animate-fade-in">
       <div className="board-header">
-        <h1 className="page-title">🎮 미니게임</h1>
+        <h1 className="page-title">미니게임</h1>
         <p className="page-desc">포인트를 모으고 랭킹을 올려보세요!</p>
       </div>
 
@@ -204,13 +99,27 @@ export default function MiniGame() {
         <div className="active-game-container">
           <button className="close-game" onClick={() => setActiveGame(null)}>← 게임 목록으로</button>
           {!user ? (
-            <div style={{ padding: '50px', textAlign: 'center' }}>로그인 후 이용할 수 있습니다.</div>
+            <div className="login-alert">로그인 후 이용할 수 있습니다.</div>
           ) : (
-            <>
-              {activeGame === 'click' && <ClickGame addPoints={addPoints} />}
+            <div className="game-stage">
+              {activeGame === 'click' && <ClickGame addPoints={addPoints} currentPoints={user.points || 0} />}
               {activeGame === 'fortune' && <FortuneGame addPoints={addPoints} />}
               {activeGame === 'roulette' && <RouletteGame addPoints={addPoints} />}
-            </>
+              {activeGame === 'GaltonBoard' && <GaltonBoard addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'coinflip' && <CoinFlipGame addPoints={addPoints} currentPoints={user?.points || 0} />}
+              {activeGame === 'dice' && <DiceGame addPoints={addPoints} />}
+              {activeGame === 'numberGuess' && <NumberGuessGame addPoints={addPoints} />}
+              {activeGame === 'slotMachine' && <SlotMachineGame addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'rockPaperScissors' && <RockPaperScissorsGame addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'gatcha' && <GatchaGame addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'memoryGame' && <NumberMemoryGame addPoints={addPoints} />}
+              {activeGame === 'boxGame' && <BoxGame addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'bakara' && <BakaraGame addPoints={addPoints} currentPoints={user.points || 0} />}
+              {activeGame === 'ladderGame' && <LadderGame addPoints={addPoints} />}
+              {activeGame === 'mineSweeper' && <MineSweeperGame addPoints={addPoints} />}
+              {activeGame === 'quiz' && <QuizGame addPoints={addPoints} />}
+              {activeGame === 'crossTheRoad' && <CrossTheRoadGame addPoints={addPoints} />}
+            </div>
           )}
         </div>
       )}
