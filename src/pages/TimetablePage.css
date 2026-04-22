@@ -1,0 +1,228 @@
+.timetable-page {
+    padding: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+    min-height: calc(100vh - 100px);
+}
+
+.timetable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 32px;
+}
+
+.timetable-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.info-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* Container */
+.timetable-container {
+    position: relative;
+    padding: 2px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+
+.timetable-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-header {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.period-label, .day-label {
+    padding: 16px 8px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.day-label {
+    border-left: 1px solid var(--border-light);
+}
+
+.grid-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.period-row {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.period-row:last-child {
+    border-bottom: none;
+}
+
+.period-num {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+    background: var(--bg-main);
+    color: var(--text-muted);
+}
+
+.p-num {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--text-main);
+}
+
+.p-time {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.subject-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 4px;
+    border-left: 1px solid var(--border-light);
+    text-align: center;
+    min-height: 80px;
+}
+
+.subject-name {
+    font-size: 14px;
+    font-weight: 700;
+    word-break: keep-all;
+}
+
+.subject-cell.empty {
+    background: rgba(0,0,0,0.02);
+    color: var(--text-muted);
+}
+
+[data-theme='dark'] .subject-cell.empty {
+    background: rgba(255,255,255,0.02);
+}
+
+/* Loading Overlay */
+.timetable-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--bg-card-rgb), 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--primary-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Empty State */
+.timetable-page.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-state {
+    text-align: center;
+    max-width: 300px;
+}
+
+.empty-state h2 {
+    margin: 16px 0 8px;
+    font-weight: 800;
+}
+
+.empty-state p {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.go-mypage {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.timetable-footer {
+    margin-top: 16px;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .timetable-page {
+        padding: 16px;
+    }
+    
+    .timetable-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .grid-header {
+        grid-template-columns: 50px repeat(5, 1fr);
+    }
+    
+    .period-row {
+        grid-template-columns: 50px repeat(5, 1fr);
+    }
+    
+    .period-label, .period-num {
+        width: 50px;
+    }
+    
+    .subject-name {
+        font-size: 12px;
+    }
+    
+    .period-num .p-time {
+        display: none;
+    }
+}

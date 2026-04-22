@@ -2,19 +2,24 @@ import { useState, useRef, useEffect } from 'react';
 import { Search, Bell, Menu, Settings, LogOut, Check, MessageSquare, Heart, Star, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useNotifications, markAllNotificationsRead, markNotificationRead } from '../../hooks/useNotifications';
 import './Header.css';
-
-const mockNotifications = [
-  { id: 1, type: 'comment', text: '첫 로그인!.', time: '3분 전', read: true },
-];
 
 export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [showNotif, setShowNotif] = useState(false);
+  
+  const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
+  const isAdmin = user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+
   const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // 실시간 알림 구독
+  const notifications = useNotifications(user?.id);
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -25,14 +30,43 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const unreadCount = mockNotifications.filter(n => !n.read).length;
+  const handleMarkAllRead = async () => {
+    if (user) await markAllNotificationsRead(user.id);
+  };
+
+  const handleNotifClick = async (notif: any) => {
+    await markNotificationRead(notif.id);
+    setShowNotif(false);
+    navigate(`/post/${notif.postId}`);
+  };
 
   const getNotifIcon = (type: string) => {
     switch (type) {
       case 'comment': return <MessageSquare size={16} />;
       case 'like': return <Heart size={16} />;
+      case 'reply': return <MessageSquare size={16} />;
       default: return <Star size={16} />;
     }
+  };
+
+  const getNotifText = (notif: any) => {
+    switch (notif.type) {
+      case 'comment': return `${notif.fromUser}님이 내 글에 댓글을 남겼습니다.`;
+      case 'like': return `${notif.fromUser}님이 내 글을 좋아합니다.`;
+      case 'reply': return `${notif.fromUser}님이 댓글에 답글을 남겼습니다.`;
+      default: return '새로운 알림이 있습니다.';
+    }
+  };
+
+  const formatTime = (ts: number) => {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return '방금 전';
+    if (m < 60) return `${m}분 전`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}시간 전`;
+    return `${Math.floor(h / 24)}일 전`;
   };
 
   return (
@@ -57,24 +91,35 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
           {showNotif && (
             <div className="dropdown-panel notif-panel animate-fade-in">
               <div className="dropdown-header">
-                <h4>알림</h4>
-                <button className="mark-read-btn"><Check size={14} /> 모두 읽음</button>
+                <h4>알림 {unreadCount > 0 && <span className="notif-unread-count">{unreadCount}</span>}</h4>
+                {unreadCount > 0 && (
+                  <button className="mark-read-btn" onClick={handleMarkAllRead}><Check size={14} /> 모두 읽음</button>
+                )}
               </div>
               <ul className="notif-list">
-                {mockNotifications.map(n => (
-                  <li key={n.id} className={`notif-item ${n.read ? '' : 'unread'}`}>
+                {notifications.length === 0 ? (
+                  <li style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    알림이 없습니다.
+                  </li>
+                ) : notifications.map(n => (
+                  <li
+                    key={n.id}
+                    className={`notif-item ${n.read ? '' : 'unread'}`}
+                    onClick={() => handleNotifClick(n)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className={`notif-icon-wrap ${n.type}`}>
                       {getNotifIcon(n.type)}
                     </div>
                     <div className="notif-content">
-                      <p className="notif-text">{n.text}</p>
-                      <span className="notif-time">{n.time}</span>
+                      <p className="notif-text">{getNotifText(n)}</p>
+                      <span className="notif-sub">{n.postTitle}</span>
+                      <span className="notif-time">{formatTime(n.createdAt)}</span>
                     </div>
                     {!n.read && <span className="unread-dot"></span>}
                   </li>
                 ))}
               </ul>
-              <button className="notif-view-all">모든 알림 보기</button>
             </div>
           )}
         </div>
@@ -119,11 +164,12 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
                   <button className="profile-menu-item" onClick={() => navigate('/mypage')}>
                     <Settings size={16} /> 마이페이지
                   </button>
-                  {user.role === 'admin' && (
+                  {isAdmin && (
                     <button className="profile-menu-item" onClick={() => navigate('/admin')}>
                       <Shield size={16} /> 관리자 패널
                     </button>
                   )}
+
                   <div className="menu-divider"></div>
                   <button className="profile-menu-item logout" onClick={logout}>
                     <LogOut size={16} /> 로그아웃

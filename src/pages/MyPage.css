@@ -1,10 +1,10 @@
-/* Clean Light Mode V3 - Apple Aesthetic */
+/* Clean V3 - 다크모드 완벽 지원 */
 .mypage-v3 {
   position: relative;
   min-height: 100vh;
-  background-color: #f8fafc; /* Crisp Light Grayish White */
-  color: #1e293b;
-  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: 'Outfit', 'Pretendard Variable', sans-serif;
   overflow-x: hidden;
 }
 
@@ -12,7 +12,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 240px;
-  background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
+  background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-main) 100%);
   z-index: 0;
 }
 
@@ -73,7 +73,7 @@
   font-size: 34px;
   font-weight: 900;
   letter-spacing: -1px;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .profile-id-v3 {
@@ -85,7 +85,7 @@
 
 .profile-email-v3 {
   font-size: 15px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 6px 0 16px;
 }
 
@@ -94,21 +94,39 @@
   gap: 12px;
 }
 
+.badge-v3.school {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 800;
+  border-color: var(--primary);
+}
+
+.pulse-btn {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(108, 99, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(108, 99, 255, 0); }
+}
+
 .badge-v3 {
   padding: 6px 14px;
   border-radius: 12px;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   font-size: 13px;
   font-weight: 700;
-  color: #475569;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
 }
 
 .badge-v3.points {
-  color: #6366f1;
-  border-color: #e0e7ff;
-  background: #f5f3ff;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  font-weight: 700;
+  border-color: rgba(245, 158, 11, 0.3);
 }
 
 /* Tabs V3 */
@@ -137,18 +155,18 @@
 }
 
 .tab-btn-v3.active {
-    color: #3b82f6;
-    background: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    color: var(--primary);
+    background: var(--bg-hover);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Content V3 */
 .v3-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: 28px;
     padding: 32px;
-    border: 1px solid #f1f5f9;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
     margin-bottom: 24px;
 }
 
@@ -166,7 +184,7 @@
     display: flex;
     justify-content: space-around;
     padding: 40px;
-    background: linear-gradient(to right, white, #fafafa);
+    background: var(--bg-card);
 }
 
 .v3-stat {
@@ -191,7 +209,7 @@
 .v3-divider {
     width: 1px;
     height: 50px;
-    background: #e2e8f0;
+    background: var(--border-light);
 }
 
 /* Activity List V3 */
@@ -209,14 +227,14 @@
 }
 
 .v3-item:hover {
-    background: white;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+    background: var(--bg-hover);
+    box-shadow: var(--shadow-sm);
 }
 
 .v3-item-icon {
     width: 40px; height: 40px;
-    background: #eff6ff;
-    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
     border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
 }
@@ -233,7 +251,7 @@
 .v3-item-title-text {
     font-size: 15px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-main);
 }
 
 .v3-item-time {
@@ -263,7 +281,7 @@
 
 .setting-info-v3 p {
     font-size: 13px;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .v3-toggle {
@@ -296,8 +314,8 @@
 .v3-btn-small {
     padding: 8px 16px;
     border-radius: 10px;
-    background: #eff6ff;
-    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
     font-weight: 700;
     font-size: 13px;
     border: none;
@@ -322,10 +340,10 @@
 }
 
 .v3-btn.secondary {
-    background: white;
-    color: #1e293b;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Badges V3 */
@@ -341,13 +359,13 @@
     gap: 16px;
     padding: 20px;
     border-radius: 20px;
-    background: #fafafa;
-    border: 1px solid #f1f5f9;
+    background: var(--bg-main);
+    border: 1px solid var(--border-light);
     position: relative;
 }
 
 .badge-item-v3.earned {
-    background: white;
+    background: var(--bg-card);
     border-color: #6366f1;
 }
 
@@ -362,7 +380,7 @@
 
 .badge-info-v3 p {
     font-size: 12px;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .lock-v3 {
@@ -405,13 +423,13 @@
 }
 
 .modal-content-v3 {
-    background: white;
+    background: var(--bg-card);
     width: 90%;
     max-width: 400px;
     border-radius: 24px;
     padding: 30px;
     position: relative;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-lg);
     animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -442,7 +460,7 @@
     font-size: 22px;
     font-weight: 800;
     margin-bottom: 24px;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .input-group-v3 {
@@ -455,15 +473,17 @@
 .input-group-v3 label {
     font-size: 14px;
     font-weight: 700;
-    color: #475569;
+    color: var(--text-muted);
 }
 
 .input-group-v3 input {
     padding: 14px 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-light);
     border-radius: 12px;
     font-size: 15px;
     font-family: inherit;
+    background: var(--bg-main);
+    color: var(--text-main);
     transition: all 0.2s;
     outline: none;
 }
@@ -479,87 +499,17 @@
 }
 
 /* =========================================================
-   DARK THEME OVERRIDES FOR MYPAGE V3
+   DARK THEME — 필요한 추가 오버라이드만 유지
+   (대부분의 색상은 이미 CSS 변수로 처리됨)
    ========================================================= */
-[data-theme='dark'] .mypage-v3 {
-    background-color: var(--bg-main);
-    color: var(--text-main);
-}
-
-[data-theme='dark'] .mypage-header-bg {
-    background: linear-gradient(135deg, #18191a 0%, #242526 100%);
-    border-bottom: 1px solid var(--border-light);
-}
-
-[data-theme='dark'] .profile-name-v3,
-[data-theme='dark'] .modal-title-v3,
-[data-theme='dark'] .v3-item-title-text {
-    color: var(--text-main);
-}
-
-[data-theme='dark'] .profile-id-v3,
-[data-theme='dark'] .profile-email-v3,
-[data-theme='dark'] .tab-btn-v3,
-[data-theme='dark'] .stat-label,
-[data-theme='dark'] .v3-item-time,
-[data-theme='dark'] .v3-item-body p,
-[data-theme='dark'] .setting-info-v3 p,
-[data-theme='dark'] .badge-info-v3 p,
-[data-theme='dark'] .input-group-v3 label {
-    color: var(--text-muted);
-}
-
-[data-theme='dark'] .badge-v3 {
-    background: #2D2D30;
-    border-color: #3f3f46;
-    color: #e4e4e7;
-}
-
 [data-theme='dark'] .badge-v3.points {
-    background: #312e81;
-    border-color: #4338ca;
-    color: #818cf8;
-}
-
-[data-theme='dark'] .tabs-v3 {
-    border-color: var(--border-light);
+    background: rgba(99, 102, 241, 0.15);
+    border-color: #6366f1;
+    color: #a5b4fc;
 }
 
 [data-theme='dark'] .tab-btn-v3:hover {
-    color: #e4e4e7;
-}
-
-[data-theme='dark'] .tab-btn-v3.active {
-    background: var(--bg-hover);
-    color: #60a5fa;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-[data-theme='dark'] .v3-card {
-    background: var(--bg-card);
-    border-color: var(--border-light);
-    box-shadow: var(--shadow-sm);
-}
-
-[data-theme='dark'] .stats-card {
-    background: linear-gradient(to right, var(--bg-card), var(--bg-main));
-}
-
-[data-theme='dark'] .v3-divider {
-    background: var(--border-light);
-}
-
-[data-theme='dark'] .v3-item:hover {
-    background: var(--bg-hover);
-}
-
-[data-theme='dark'] .v3-item-icon {
-    background: rgba(59, 130, 246, 0.1);
-    color: #60a5fa;
-}
-
-[data-theme='dark'] .v3-toggle {
-    background: var(--border-light);
+    color: var(--text-main);
 }
 
 [data-theme='dark'] .v3-toggle::before {
@@ -574,55 +524,17 @@
     background: white;
 }
 
-[data-theme='dark'] .v3-btn-small {
-    background: rgba(59, 130, 246, 0.1);
-    color: #60a5fa;
-}
-
 [data-theme='dark'] .v3-btn-small.danger {
     background: rgba(244, 63, 94, 0.1);
     color: #fb7185;
 }
 
-[data-theme='dark'] .v3-btn-small.secondary {
-    background: var(--bg-hover);
-    color: var(--text-main);
-    border: 1px solid var(--border-light);
-}
-
-[data-theme='dark'] .v3-btn.secondary {
-    background: var(--bg-hover);
-    color: var(--text-main);
-    border-color: var(--border-light);
-}
-
-[data-theme='dark'] .badge-item-v3 {
-    background: var(--bg-main);
-    border-color: var(--border-light);
-}
-
-[data-theme='dark'] .badge-item-v3.earned {
-    background: var(--bg-card);
-    border-color: #6366f1;
-}
-
-[data-theme='dark'] .modal-content-v3 {
-    background: var(--bg-card);
-    box-shadow: var(--shadow-lg);
-}
-
 [data-theme='dark'] .modal-close-v3:hover {
     background: var(--bg-hover);
-    color: #e4e4e7;
-}
-
-[data-theme='dark'] .input-group-v3 input {
-    background: var(--bg-main);
-    border-color: var(--border-light);
     color: var(--text-main);
 }
 
 [data-theme='dark'] .input-group-v3 input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
 }

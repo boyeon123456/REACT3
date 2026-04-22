@@ -12,10 +12,14 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   // 아직 로딩 중이면 아무것도 표시하지 않거나 로딩 인디케이터 표시
   if (loading) return null;
 
-  // 로그인이 안 되어 있거나 role이 admin이 아니면 홈으로 리다이렉트
-  if (!user || user.role !== 'admin') {
+  const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
+  const isAdmin = user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+
+  // 로그인이 안 되어 있거나 admin 권한이 없으면 홈으로 리다이렉트
+  if (!user || !isAdmin) {
     return <Navigate to="/" replace />;
   }
+
 
   return <>{children}</>;
 };

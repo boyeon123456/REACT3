@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
-import { Target, Dices, RotateCcw, Trophy, CircleGauge, LayoutGrid, LocateFixed, Aperture, Grip, Atom, Eye, Box, RectangleEllipsis, Rows3, Grid2x2, ScrollText, Car } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Target, Dices, RotateCcw, Trophy, CircleGauge, LayoutGrid, LocateFixed, Aperture, Grip, Atom, Eye, Box, RectangleEllipsis, Rows3, Grid2x2, ScrollText, Car, Crown, Medal } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../firebase';
-import { doc, updateDoc, increment, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, increment, getDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { checkAndAwardBadges } from '../hooks/useBadgeCheck';
 import './MiniGame.css';
 import FortuneGame from '../components/MiniGameComonents/fortune';
 import ClickGame from '../components/MiniGameComonents/click';
@@ -44,16 +45,36 @@ const games = [
   { id: 'crossTheRoad', title: '길건너 친구들', desc: '길을 건너 친구에게 가보세요!', icon: Car, color: '#ff0000ff', points: '+10~500P' },
 ];
 
+const RANK_ICONS = [
+  <Crown size={18} color="#FFD700" />,
+  <Crown size={18} color="#C0C0C0" />,
+  <Medal size={18} color="#CD7F32" />,
+];
+
 export default function MiniGame() {
   const user = useAuthStore(state => state.user);
   const loginFn = useAuthStore(state => state.login);
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<'games' | 'leaderboard'>('games');
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  // 리더보드 실시간 구독
+  useEffect(() => {
+    const q = query(collection(db, 'users'), orderBy('points', 'desc'), limit(10));
+    const unsub = onSnapshot(q, (snap) => {
+      setLeaderboard(snap.docs.map((d, i) => ({ rank: i + 1, ...d.data(), id: d.id })));
+    });
+    return () => unsub();
+  }, []);
 
   const addPoints = useCallback(async (amount: number) => {
     if (!user) return;
     try {
       const userRef = doc(db, 'users', user.id);
-      await updateDoc(userRef, { points: increment(amount) });
+      await updateDoc(userRef, {
+        points: increment(amount),
+        gameCount: increment(1),
+      });
       const snap = await getDoc(userRef);
 
       if (snap.exists()) {
@@ -67,7 +88,22 @@ export default function MiniGame() {
         if (newLevel !== data.level) {
           await updateDoc(userRef, { level: newLevel });
         }
-        loginFn({ ...user, points: data.points, level: newLevel });
+
+        // 배지 자동 획득 체크
+        const newBadges = await checkAndAwardBadges(
+          user.id,
+          data.points,
+          data.gameCount || 0,
+          0,
+          data.badges || []
+        );
+
+        if (newBadges.length > 0) {
+          // 간단한 토스트 알림 (alert 대신 콘솔 — 나중에 UI toast로 교체 가능)
+          console.log('새 배지 획득:', newBadges);
+        }
+
+        loginFn({ ...user, points: data.points, level: newLevel, gameCount: data.gameCount || 0, badges: data.badges || [] });
       }
     } catch (err) {
       console.error('포인트 업데이트 실패:', err);
@@ -94,6 +130,24 @@ export default function MiniGame() {
           </div>
         </div>
       </div>
+
+      {/* 탭 (게임 목록 / 리더보드) */}
+      {!activeGame && (
+        <div className="minigame-tabs">
+          <button
+            className={`mg-tab ${viewTab === 'games' ? 'active' : ''}`}
+            onClick={() => setViewTab('games')}
+          >
+            🎮 게임 목록
+          </button>
+          <button
+            className={`mg-tab ${viewTab === 'leaderboard' ? 'active' : ''}`}
+            onClick={() => setViewTab('leaderboard')}
+          >
+            🏆 리더보드
+          </button>
+        </div>
+      )}
 
       {activeGame && (
         <div className="active-game-container">
@@ -124,7 +178,7 @@ export default function MiniGame() {
         </div>
       )}
 
-      {!activeGame && (
+      {!activeGame && viewTab === 'games' && (
         <div className="game-grid">
           {games.map(game => (
             <div key={game.id} className="game-card" onClick={() => setActiveGame(game.id)}>
@@ -141,6 +195,48 @@ export default function MiniGame() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 리더보드 */}
+      {!activeGame && viewTab === 'leaderboard' && (
+        <div className="leaderboard-container">
+          <h2 className="leaderboard-title">🏆 포인트 TOP 10</h2>
+          <div className="leaderboard-list">
+            {leaderboard.map((u, i) => (
+              <div
+                key={u.id}
+                className={`leaderboard-item ${u.id === user?.id ? 'is-me' : ''} ${i < 3 ? `rank-${i+1}` : ''}`}
+              >
+                <div className="lb-rank">
+                  {i < 3 ? RANK_ICONS[i] : <span className="lb-rank-num">{i + 1}</span>}
+                </div>
+                <div className="lb-avatar">
+                  {u.photoURL ? (
+                    <img src={u.photoURL} alt={u.name} />
+                  ) : (
+                    <div className="lb-initial">{(u.name || '?')[0]}</div>
+                  )}
+                </div>
+                <div className="lb-info">
+                  <span className="lb-name">
+                    {u.name}
+                    {u.id === user?.id && <span className="lb-me-tag">나</span>}
+                  </span>
+                  <span className="lb-level">Lv.{u.level || 1}</span>
+                </div>
+                <div className="lb-points">
+                  <span>{(u.points || 0).toLocaleString()}</span>
+                  <small>P</small>
+                </div>
+              </div>
+            ))}
+            {leaderboard.length === 0 && (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                아직 등록된 유저가 없습니다.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

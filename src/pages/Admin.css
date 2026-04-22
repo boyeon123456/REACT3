@@ -2,11 +2,12 @@
 .admin-page {
   position: relative;
   min-height: 100vh;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--bg-main);
+  color: var(--text-main);
   padding: 40px 20px 80px;
   animation: fadeIn 0.5s ease;
 }
+
 
 .admin-header {
   margin-bottom: 32px;
@@ -17,8 +18,9 @@
   font-size: 28px;
   font-weight: 900;
   letter-spacing: -1px;
-  color: #0f172a;
+  color: var(--text-main);
 }
+
 
 /* Stats V3 */
 .admin-stats {
@@ -29,21 +31,23 @@
 }
 
 .admin-stat-card {
-  background: white;
+  background: var(--bg-card);
   padding: 24px;
   border-radius: 24px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  box-shadow: var(--shadow-sm);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+
 .admin-stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-md);
 }
+
 
 .stat-icon-wrap {
   width: 56px;
@@ -61,11 +65,12 @@
 
 .stat-title {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
+
 
 .admin-stat-card .stat-value {
   font-size: 22px;
@@ -74,12 +79,13 @@
 
 /* Content Container V3 */
 .admin-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 32px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.03);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
   padding: 40px;
 }
+
 
 .table-header-actions {
   display: flex;
@@ -91,22 +97,24 @@
 .section-title {
   font-size: 20px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
 }
+
 
 .admin-filter-tabs {
   display: flex;
   gap: 8px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   padding: 6px;
   border-radius: 16px;
 }
+
 
 .af-tab {
   padding: 8px 20px;
   font-size: 14px;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   border-radius: 12px;
   transition: all 0.2s;
   cursor: pointer;
@@ -114,11 +122,13 @@
   background: transparent;
 }
 
+
 .af-tab.active {
-  background: white;
-  color: #3b82f6;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
+
 
 /* Report Cards V3 */
 .report-cards {
@@ -130,16 +140,17 @@
 .report-card {
   padding: 24px;
   border-radius: 24px;
-  background: #fafafa;
-  border: 1px solid #f1f5f9;
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
   transition: all 0.3s;
 }
 
 .report-card:hover {
-  background: white;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   transform: translateX(8px);
 }
+
 
 .report-card.pending {
   border-left: 4px solid #f43f5e;
@@ -179,8 +190,9 @@
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #1e293b;
+  color: var(--text-main);
 }
+
 
 .report-meta {
   display: flex;
@@ -206,18 +218,21 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid #e2e8f0;
-  background: white;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-main);
 }
 
-.admin-btn.approve { color: #3b82f6; border-color: #dbeafe; }
-.admin-btn.approve:hover { background: #eff6ff; }
 
-.admin-btn.delete { color: #f43f5e; border-color: #ffe4e6; }
-.admin-btn.delete:hover { background: #fff1f2; }
+.admin-btn.approve { color: var(--primary); border-color: var(--primary-light); }
+.admin-btn.approve:hover { background: var(--bg-hover); }
 
-.admin-btn.dismiss { color: #64748b; }
-.admin-btn.dismiss:hover { background: #f8fafc; }
+.admin-btn.delete { color: #f43f5e; border-color: rgba(244, 63, 94, 0.2); }
+.admin-btn.delete:hover { background: rgba(244, 63, 94, 0.05); }
+
+.admin-btn.dismiss { color: var(--text-muted); }
+.admin-btn.dismiss:hover { background: var(--bg-hover); }
+
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }

@@ -1,0 +1,260 @@
+.shop-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px 100px;
+}
+
+.shop-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60vh;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* Header Section */
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 60px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.shop-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.shop-header h1 {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -1.5px;
+    margin-bottom: 8px;
+}
+
+.shop-header p {
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+.user-points-card {
+    background: var(--bg-card);
+    padding: 16px 24px;
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    text-align: right;
+}
+
+.points-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.points-value {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.points-value span {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.shop-card {
+  background: var(--shop-card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--shop-card-border);
+  border-radius: 32px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  animation: slideUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.shop-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+}
+
+.shop-card-visual {
+    height: 160px;
+    background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-main) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.badge-preview {
+    padding: 8px 18px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 800;
+    font-size: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.color-preview {
+    text-align: center;
+}
+
+.preview-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.preview-name {
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.shop-card-info {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.item-type {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.item-name {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.item-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.shop-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.item-price {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.price-icon {
+    font-size: 18px;
+}
+
+.price-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: #f59e0b;
+}
+
+.buy-btn {
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.buy-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.buy-btn.active:hover {
+    background: #5a52e0;
+}
+
+.buy-btn.disabled {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.buy-btn.owned {
+    background: #ecfdf5;
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: default;
+}
+
+/* Guide Section */
+.shop-guide {
+    margin-top: 60px;
+}
+
+.guide-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px;
+    background: var(--bg-hover);
+    border-radius: 20px;
+    color: var(--text-muted);
+}
+
+.guide-text h4 {
+    color: var(--text-main);
+    margin-bottom: 4px;
+    font-weight: 700;
+}
+
+.guide-text p {
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .shop-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+    
+    .user-points-card {
+        width: 100%;
+        text-align: left;
+    }
+}

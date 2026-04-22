@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles, Utensils, CalendarDays, ChevronLeft } from 'lucide-react';
+import { getMealData } from '../api/neisApi';
+import { useAuthStore } from '../store/authStore';
 import { Link } from 'react-router-dom';
 import FloatingAction from '../components/ui/FloatingAction';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, limit } from 'firebase/firestore';
 import './Home.css';
 
-const announcements = [
-  "🔐 교내 와이파이 비밀번호 변경 안내",
-  "🎉 미니게임 신규 업데이트! 운세뽑기 추가됨",
-];
+// const announcements = [
+//   "🔐 교내 와이파이 비밀번호 변경 안내",
+//   "🎉 미니게임 신규 업데이트! 운세뽑기 추가됨",
+// ];
+
 
 const hotTopics = [
   { keyword: '없음', count: 0 },
@@ -20,20 +23,92 @@ export default function Home() {
   const [popularPosts, setPopularPosts] = useState<any[]>([]);
   const [latestPosts, setLatestPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState<string[]>(["환영합니다! 우리 학교 커뮤니티입니다.", "건전한 커뮤니티 문화를 함께 만들어가요."]);
+
+  // 오늘의 정보 State
+  const { user } = useAuthStore();
+  const [todayMeal, setTodayMeal] = useState<any>(null);
+  const [todayTimetable, setTodayTimetable] = useState<any[]>([]);
+
+
 
   useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'));
+    const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'), limit(20));
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
       setLatestPosts(data.slice(0, 8));
-
       const sortedByLikes = [...data].sort((a, b) => (b.likes || 0) - (a.likes || 0));
       setPopularPosts(sortedByLikes.slice(0, 4));
-
+      setLoading(false);
+    }, (err) => {
+      console.error('Home posts error:', err);
       setLoading(false);
     });
-    return () => unsub();
-  }, []);
+
+
+    // 공지사항 구독
+    const unsubAnnounce = onSnapshot(doc(db, 'settings', 'announcements'),
+      (snap) => {
+        if (snap.exists()) {
+          const list = snap.data().list;
+          if (list && list.length > 0) setAnnouncements(list);
+        }
+      },
+      (err) => console.error('Announcements error:', err)
+    );
+
+    // 오늘의 급식 & 시간표 조회
+    const now = new Date();
+    const fetchTodayInfo = async () => {
+      try {
+        const yyyymmdd = now.toISOString().split('T')[0].replace(/-/g, '');
+        const meal = await getMealData(yyyymmdd);
+        setTodayMeal(meal);
+      } catch (e) {
+        console.error('Meal fetch error:', e);
+      }
+    };
+
+    fetchTodayInfo();
+
+    // 오늘의 시간표 실시간 구독 (Firestore Manual)
+    let unsubTT: any = null;
+    if (user?.grade && user?.class) {
+      unsubTT = onSnapshot(doc(db, 'timetables', `${user.grade}-${user.class}`),
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            const daysK = ['일', '월', '화', '수', '목', '금', '토'];
+            const dayName = daysK[now.getDay()];
+            const todayList = data[dayName] || {};
+
+            const formatted = Object.entries(todayList)
+              .filter(([_, s]) => s !== '') // 빈 값 제외
+              .map(([p, s]) => ({
+                period: p,
+                subject: s
+              })).sort((a: any, b: any) => parseInt(a.period) - parseInt(b.period));
+
+            setTodayTimetable(formatted);
+          }
+        },
+        (err) => {
+          console.error('Timetable sync error:', err);
+        }
+      );
+    }
+
+    return () => {
+      unsub();
+      unsubAnnounce();
+      if (unsubTT) unsubTT();
+    };
+  }, [user?.grade, user?.class]);
+
+
+
+
+
 
   const formatDate = (ts: number) => {
     if (!ts) return '';
@@ -62,7 +137,52 @@ export default function Home() {
         </div>
       </div>
 
+      <div className="home-dashboard">
+        <div className="dash-card meal-dash" onClick={() => window.location.href = '/meals'}>
+          <div className="dash-card-header">
+            <Utensils size={18} /> <span>오늘의 식단</span>
+          </div>
+          <div className="dash-card-content">
+            {todayMeal ? (
+              <div className="meal-summary">
+                <p className="meal-main-text">{todayMeal?.lunch || todayMeal?.dinner || '식단 정보가 없습니다.'}</p>
+                <span className="meal-info-v3">가장 가까운 식단 정보입니다.</span>
+              </div>
+            ) : <p className="loading-text">급식을 불러오는 중...</p>}
+          </div>
+
+        </div>
+
+        <div className="dash-card timetable-dash" onClick={() => window.location.href = '/timetable'}>
+          <div className="dash-card-header">
+            <CalendarDays size={18} /> <span>오늘의 시간표</span>
+          </div>
+          <div className="dash-card-content">
+            {user?.grade && user?.class ? (
+              todayTimetable.length > 0 ? (
+                <div className="tt-summary">
+                  <div className="tt-scroll-box">
+                    {todayTimetable.slice(0, 4).map((item, i) => (
+                      <div key={i} className="tt-mini-cell">
+                        <span className="tt-p">{item.period}</span>
+                        <span className="tt-s">{item.subject}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="loading-text">시간표를 불러오는 중...</p>
+            ) : (
+              <div className="tt-request">
+                <p>정보를 설정해주세요</p>
+                <Link to="/mypage" className="tt-link-btn">설정하러가기</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="hot-topics">
+
         <Sparkles size={16} className="text-primary" />
         <span className="hot-label">인기 키워드</span>
         {hotTopics.map((t, i) => (

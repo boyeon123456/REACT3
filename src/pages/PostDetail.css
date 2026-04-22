@@ -24,12 +24,16 @@
   font-size: 15px;
 }
 
-.bookmarked { color: var(--primary); }
+.edit-btn:hover {
+  color: var(--primary);
+  background-color: rgba(108, 92, 231, 0.06);
+}
 
 .delete-btn:hover {
   color: #FF4757;
   background-color: rgba(255, 71, 87, 0.05);
 }
+
 
 /* Content */
 .detail-content {

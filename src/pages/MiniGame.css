@@ -48,13 +48,14 @@
 
 .claim-btn {
   background: white;
-  color: var(--primary);
+  color: #6C5CE7;
   padding: 12px 28px;
   border-radius: var(--radius-full);
   font-weight: 800;
   z-index: 1;
   transition: transform 0.2s;
 }
+
 
 .claim-btn:hover {
   transform: scale(1.05);
@@ -482,15 +483,16 @@
 .bet-input {
   width: 140px;
   padding: 8px 12px;
-  border: 2px solid var(--border, #ddd);
+  border: 2px solid var(--border-light);
   border-radius: 8px;
   font-size: 16px;
   text-align: right;
-  background: var(--input-bg, #fff);
-  color: var(--text, #111);
+  background: var(--bg-main);
+  color: var(--text-main);
   outline: none;
   transition: border-color 0.2s;
 }
+
 
 .bet-input:focus {
   border-color: var(--accent, #6366f1);
@@ -511,18 +513,20 @@
 .bet-quick-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1.5px solid var(--border, #ddd);
+  border: 1.5px solid var(--border-light);
   background: transparent;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
+
 .bet-quick-btn:hover {
-  background: var(--accent, #6366f1);
+  background: var(--primary);
   color: #fff;
-  border-color: var(--accent, #6366f1);
+  border-color: var(--primary);
 }
+
 
 .bet-error {
   color: #ef4444;
@@ -546,10 +550,11 @@
   text-align: center;
   font-size: 11px;
   font-weight: 700;
-  background: var(--slot-bg, #f3f4f6);
-  color: var(--text, #555);
+  background: var(--bg-main);
+  color: var(--text-muted);
   transition: all 0.3s;
 }
+
 
 .galton-slot.slot-high {
   background: #fef3c7;
@@ -568,10 +573,11 @@
 
 .galton-slot.slot-active {
   transform: scale(1.15);
-  box-shadow: 0 0 0 2px #6366f1;
-  background: #6366f1 !important;
+  box-shadow: 0 0 0 2px var(--primary);
+  background: var(--primary) !important;
   color: #fff !important;
 }
+
 
 /* 손익 텍스트 */
 .profit-text {
@@ -582,4 +588,168 @@
 .loss-text {
   color: #dc2626;
   font-weight: 700;
+}
+
+/* 미니게임 탭 */
+.minigame-tabs {
+  display: flex;
+  gap: 12px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 0;
+}
+
+.mg-tab {
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: transparent;
+  border-top: none; border-left: none; border-right: none;
+}
+
+.mg-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.mg-tab:hover:not(.active) {
+  color: var(--text-main);
+}
+
+/* 리더보드 */
+.leaderboard-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+}
+
+.leaderboard-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s;
+}
+
+.leaderboard-item:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.leaderboard-item.is-me {
+  border-color: var(--primary);
+  background: rgba(108, 92, 231, 0.06);
+}
+
+.leaderboard-item.rank-1 {
+  background: linear-gradient(90deg, rgba(255,215,0,0.06), transparent);
+  border-color: rgba(255,215,0,0.3);
+}
+
+
+.leaderboard-item.rank-2 {
+  background: linear-gradient(90deg, rgba(192,192,192,0.06), transparent);
+  border-color: rgba(192,192,192,0.2);
+}
+
+
+.leaderboard-item.rank-3 {
+  background: linear-gradient(90deg, rgba(205,127,50,0.06), transparent);
+  border-color: rgba(205,127,50,0.2);
+}
+
+
+.lb-rank {
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lb-rank-num {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.lb-avatar img,
+.lb-initial {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.lb-initial {
+  background: var(--gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.lb-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.lb-name {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lb-me-tag {
+  font-size: 11px;
+  background: var(--primary);
+  color: white;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.lb-level {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.lb-points {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.lb-points small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, ChevronRight, Utensils, CalendarDays, ShoppingBag } from 'lucide-react';
+
+
 import { useAuthStore } from '../../store/authStore';
 import logoImage from '../../assets/670483720_1443067160639588_6486915911126418629_n.png';
 import './Sidebar.css';
@@ -10,9 +12,16 @@ const navItems = [
   { path: '/board', label: '게시판', icon: MessageSquare },
   { path: '/write', label: '글쓰기', icon: Edit3 },
   { path: '/games', label: '미니게임', icon: Gamepad2 },
+  { path: '/meals', label: '급식 정보', icon: Utensils },
+  { path: '/timetable', label: '학급 시간표', icon: CalendarDays },
+  { path: '/shop', label: '포인트 상점', icon: ShoppingBag },
   { path: '/mypage', label: '마이페이지', icon: User },
   { path: '/admin', label: '관리자', icon: ShieldAlert },
 ];
+
+
+const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
+
 
 export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMenuOpen?: boolean, closeMobileMenu?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -38,7 +47,11 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
 
       <nav className="sidebar-nav">
         {navItems
-          .filter(item => item.path !== '/admin' || user?.role === 'admin')
+          .filter(item => {
+            if (item.path !== '/admin') return true;
+            return user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+          })
+
           .map((item) => (
             <NavLink
               key={item.path}

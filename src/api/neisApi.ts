@@ -115,3 +115,72 @@ export async function getMonthlyMeals(year: number, month: number): Promise<Reco
   await Promise.all(promises);
   return result;
 }
+
+/**
+ * 특정 날짜의 학급 시간표를 가져옵니다.
+ * @param date YYYYMMDD
+ * @param grade 학년
+ * @param className 반
+ */
+export async function getTimetableData(date: string, grade: string, className: string) {
+  const url = 'https://open.neis.go.kr/hub/hisTimetable';
+  try {
+    const response = await axios.get(url, {
+      params: {
+        Type: 'json',
+        pIndex: 1,
+        pSize: 20,
+        ATPT_OFCDC_SC_CODE: SCHOOL_CONFIG.ATPT_OFCDC_SC_CODE,
+        SD_SCHUL_CODE: SCHOOL_CONFIG.SD_SCHUL_CODE,
+        ALL_TI_YMD: date,
+        GRADE: grade,
+        CLASS_NM: className
+      }
+    });
+
+    const data = response.data;
+    if (data.hisTimetable) {
+      return data.hisTimetable[1].row.map((item: any) => ({
+        period: item.PERIO,
+        subject: item.ITRT_CNTNT
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.error('Timetable API error:', err);
+    return [];
+  }
+}
+
+/**
+ * 이번 주(월~금)의 전체 시간표를 가져옵니다.
+ */
+export async function getWeeklyTimetable(grade: string, className: string) {
+  if (!grade || !className) return {};
+  
+  const days = ['월', '화', '수', '목', '금'];
+  const today = new Date();
+  const currentDay = today.getDay();
+  const monday = new Date(today);
+  const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+  monday.setDate(diff);
+
+  const weeklyTimetable: any = {};
+  const promises = [];
+
+  for (let i = 0; i < 5; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const yyyymmdd = date.toISOString().split('T')[0].replace(/-/g, '');
+    
+    promises.push(
+      getTimetableData(yyyymmdd, grade, className).then(data => {
+        weeklyTimetable[days[i]] = data;
+      })
+    );
+  }
+
+  await Promise.all(promises);
+  return weeklyTimetable;
+}
+

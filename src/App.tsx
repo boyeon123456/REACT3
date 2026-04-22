@@ -10,7 +10,10 @@ import MyPage from './pages/MyPage';
 import Admin from './pages/Admin';
 import AdminRoute from './components/AdminRoute';
 import MealPage from './pages/MealPage';
+import TimetablePage from './pages/TimetablePage';
+import Shop from './pages/Shop';
 import Login from './pages/Login';
+
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
 import { useEffect } from 'react';
@@ -60,9 +63,14 @@ function App() {
           <Route path="board" element={<Board />} />
           <Route path="post/:id" element={<PostDetail />} />
           <Route path="write" element={<WritePost />} />
+          <Route path="edit/:id" element={<WritePost />} />
           <Route path="games" element={<MiniGame />} />
           <Route path="meals" element={<MealPage />} />
+          <Route path="timetable" element={<TimetablePage />} />
+          <Route path="shop" element={<Shop />} />
           <Route path="mypage" element={<MyPage />} />
+
+
           <Route path="admin" element={
             <AdminRoute>
               <Admin />

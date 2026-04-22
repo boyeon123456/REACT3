@@ -10,8 +10,17 @@ export interface User {
   points: number;
   level: number;
   role: string;
-  photoURL?: string;
+  photoURL?: string | null;
+
+  badges?: string[];
+  gameCount?: number;
+  isBanned?: boolean;
+  grade?: string;
+  class?: string;
+  equipped_items?: Record<string, string>;
 }
+
+
 
 interface AuthState {
   user: User | null;
@@ -20,7 +29,7 @@ interface AuthState {
   logout: () => void;
 }
 
-const ADMIN_EMAILS = ['admin_test_123@school.com']; // 관리자 목록
+const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com']; // 관리자 목록
 
 export const useAuthStore = create<AuthState>((set) => {
   // Listen to Firebase Auth state changes globally
@@ -41,11 +50,12 @@ export const useAuthStore = create<AuthState>((set) => {
           }
 
           if (fbUser.photoURL && userData.photoURL !== fbUser.photoURL) {
-            await setDoc(userRef, { ...userData, photoURL: fbUser.photoURL ?? null }, { merge: true });
-            set({ user: { ...userData, photoURL: fbUser.photoURL ?? null }, loading: false });
+            await setDoc(userRef, { ...userData, photoURL: fbUser.photoURL || null }, { merge: true });
+            set({ user: { ...userData, photoURL: fbUser.photoURL || null }, loading: false });
           } else {
             set({ user: userData, loading: false });
           }
+
         } else {
           const newUser: User = {
             id: fbUser.uid,
@@ -54,8 +64,14 @@ export const useAuthStore = create<AuthState>((set) => {
             points: 0,
             level: 1,
             role: isAdmin ? 'admin' : 'user',
-            photoURL: fbUser.photoURL ?? undefined
+            photoURL: fbUser.photoURL || null,
+            grade: '',
+            class: '',
+            equipped_items: {}
           };
+
+
+
           await setDoc(userRef, newUser);
           set({ user: newUser, loading: false });
         }
