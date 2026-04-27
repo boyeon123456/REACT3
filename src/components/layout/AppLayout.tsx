@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import RightPanel from './RightPanel';
@@ -7,17 +7,19 @@ import './AppLayout.css';
 
 export default function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const isGameRoute = location.pathname === '/games';
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${isGameRoute ? 'game-focus-layout' : ''}`}>
       <Sidebar mobileMenuOpen={mobileMenuOpen} closeMobileMenu={() => setMobileMenuOpen(false)} />
-      <div className="main-wrapper">
+      <div className={`main-wrapper ${isGameRoute ? 'game-focus-wrapper' : ''}`}>
         <Header toggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <div className="content-area">
-          <main className="main-content">
+        <div className={`content-area ${isGameRoute ? 'game-focus-content' : ''}`}>
+          <main className={`main-content ${isGameRoute ? 'game-focus-main' : ''}`}>
             <Outlet />
           </main>
-          <RightPanel />
+          {!isGameRoute && <RightPanel />}
         </div>
       </div>
       

@@ -2,6 +2,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 // 배지 정의: id, 조건 체크 함수
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export const BADGE_DEFINITIONS = [
   { id: '첫_걸음',    label: '첫 걸음',    icon: '🐣', desc: '처음 로그인',          check: (_p: number, _g: number, _c: number) => true },
   { id: '참가자',     label: '참가자',     icon: '🎯', desc: '미니게임 1회 참가',    check: (_p: number, g: number) => g >= 1 },
@@ -16,6 +17,7 @@ export const BADGE_DEFINITIONS = [
   { id: '개근',       label: '개근',       icon: '📅', desc: '레벨 3 달성',          check: (p: number) => p >= 400 },
   { id: '출석왕',     label: '출석왕',     icon: '📅', desc: '레벨 5 달성',          check: (p: number) => p >= 1500 },
 ];
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * 사용자 상태에 따라 새로 획득 가능한 배지를 체크하고 Firestore에 저장

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image, Search, Flame, Tag, ChevronDown } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image, Search, Flame, ChevronDown } from 'lucide-react';
 import FloatingAction from '../components/ui/FloatingAction';
 import { db } from '../firebase';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';

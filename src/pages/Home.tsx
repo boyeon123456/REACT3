@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles, Utensils, CalendarDays, ChevronLeft } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles, Utensils, CalendarDays } from 'lucide-react';
 import { getMealData } from '../api/neisApi';
 import { useAuthStore } from '../store/authStore';
 import { Link } from 'react-router-dom';

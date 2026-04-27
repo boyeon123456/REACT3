@@ -18,6 +18,12 @@ export interface User {
   grade?: string;
   class?: string;
   equipped_items?: Record<string, string>;
+  settings?: {
+    notifications?: {
+      inApp?: boolean;
+      email?: boolean;
+    };
+  };
 }
 
 
@@ -26,10 +32,34 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (user: User) => void;
+  patchUser: (updates: Partial<User>) => void;
   logout: () => void;
 }
 
 const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com']; // 관리자 목록
+const defaultSettings = {
+  notifications: {
+    inApp: true,
+    email: false,
+  },
+};
+
+function withDefaults(user: User): User {
+  return {
+    ...user,
+    settings: {
+      ...defaultSettings,
+      ...user.settings,
+      notifications: {
+        ...defaultSettings.notifications,
+        ...user.settings?.notifications,
+      },
+    },
+    equipped_items: user.equipped_items || {},
+    grade: user.grade || '',
+    class: user.class || '',
+  };
+}
 
 export const useAuthStore = create<AuthState>((set) => {
   // Listen to Firebase Auth state changes globally
@@ -41,7 +71,7 @@ export const useAuthStore = create<AuthState>((set) => {
         const isAdmin = ADMIN_EMAILS.includes(fbUser.email || '');
 
         if (userSnap.exists()) {
-          const userData = userSnap.data() as User;
+          const userData = withDefaults(userSnap.data() as User);
 
           // 관리자 리스트가 변경되었을 경우Firestore 업데이트
           if (userData.role !== (isAdmin ? 'admin' : 'user')) {
@@ -51,7 +81,7 @@ export const useAuthStore = create<AuthState>((set) => {
 
           if (fbUser.photoURL && userData.photoURL !== fbUser.photoURL) {
             await setDoc(userRef, { ...userData, photoURL: fbUser.photoURL || null }, { merge: true });
-            set({ user: { ...userData, photoURL: fbUser.photoURL || null }, loading: false });
+            set({ user: withDefaults({ ...userData, photoURL: fbUser.photoURL || null }), loading: false });
           } else {
             set({ user: userData, loading: false });
           }
@@ -67,7 +97,8 @@ export const useAuthStore = create<AuthState>((set) => {
             photoURL: fbUser.photoURL || null,
             grade: '',
             class: '',
-            equipped_items: {}
+            equipped_items: {},
+            settings: defaultSettings,
           };
 
 
@@ -87,7 +118,8 @@ export const useAuthStore = create<AuthState>((set) => {
   return {
     user: null,
     loading: true,
-    login: (user) => set({ user }),
+    login: (user) => set({ user: withDefaults(user) }),
+    patchUser: (updates) => set((state) => state.user ? { user: withDefaults({ ...state.user, ...updates }) } : state),
     logout: async () => {
       await fbSignOut(auth);
       set({ user: null });

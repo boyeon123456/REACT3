@@ -7,8 +7,8 @@ interface Props {
     currentPoints: number;
 }
 
-const CUP_COUNT = 4;
-const PRIZES = [-50, 0, 30, 100, 200];
+const CUP_COUNT = 5;
+const PRIZES = [-150, -100, -50, 0, 50, 100, 150, 200, 250, 300];
 
 export default function Bakara({ addPoints, currentPoints }: Props) {
     const [betAmount, setBetAmount] = useState('');
@@ -55,8 +55,11 @@ export default function Bakara({ addPoints, currentPoints }: Props) {
     const getPrizeLabel = (p: number) => {
         if (p < 0) return `💸 -${Math.abs(p)}P`;
         if (p === 0) return '😐 ±0P';
-        if (p <= 30) return `🎁 +${p}P`;
-        if (p <= 100) return `💰 +${p}P`;
+        if (p <= 50) return `🎁 +${p}P`;
+        if (p <= 100) return `🎁 +${p}P`;
+        if (p <= 500) return `🎁 +${p}P`;
+        if (p <= 1000) return `💰 +${p}P`;
+        if (p <= 3000) return `💰 +${p}P`;
         return `💎 +${p}P`;
     };
 
@@ -65,6 +68,9 @@ export default function Bakara({ addPoints, currentPoints }: Props) {
         if (p === 0) return '#95A5A6';
         if (p <= 30) return '#27AE60';
         if (p <= 100) return '#F39C12';
+        if (p <= 500) return '#3412f3ff';
+        if (p <= 1000) return '#e7f20dff';
+        if (p <= 3000) return '#f3125dff';
         return '#9B59B6';
     };
 

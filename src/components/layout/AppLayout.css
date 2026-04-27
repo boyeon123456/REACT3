@@ -28,6 +28,23 @@
   flex-direction: column;
 }
 
+.game-focus-layout {
+  background: var(--bg-main);
+}
+
+.game-focus-wrapper {
+  width: 100%;
+}
+
+.game-focus-content {
+  max-width: 1280px;
+  justify-content: center;
+}
+
+.game-focus-main {
+  max-width: 100%;
+ }
+
 @media (max-width: 1024px) {
   .content-area {
     padding: 24px;

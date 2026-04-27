@@ -1,66 +1,51 @@
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, BookOpen, AlertCircle } from 'lucide-react';
+import { BookOpen, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { db } from '../firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import timetableData from '../data/timetable.json';
 import './TimetablePage.css';
-
-
 
 export default function TimetablePage() {
   const { user } = useAuthStore();
-  const [timetable, setTimetable] = useState<any>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const days = ['월', '화', '수', '목', '금'];
   const periods = [1, 2, 3, 4, 5, 6, 7];
 
   useEffect(() => {
-    if (!user?.grade || !user?.class) {
+    if (!user?.grade) {
       setLoading(false);
       return;
     }
-
+    // Simulate a brief loading state for UX
     setLoading(true);
-    const unsub = onSnapshot(doc(db, 'timetables', `${user.grade}-${user.class}`), 
-      (snap) => {
-        if (snap.exists()) {
-          setTimetable(snap.data());
-        } else {
-          setTimetable({});
-        }
-        setLoading(false);
-      },
-      (err) => {
-        console.error(err);
-        setError('시간표를 불러오는 중 오류가 발생했습니다.');
-        setLoading(false);
-      }
-    );
-    return () => unsub();
-  }, [user?.grade, user?.class]);
+    const timer = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, [user?.grade]);
 
 
-  if (!user?.grade || !user?.class) {
+  if (!user?.grade) {
     return (
       <div className="timetable-page empty">
         <div className="empty-state">
           <AlertCircle size={48} />
-          <h2>학년/반 정보가 없습니다.</h2>
-          <p>마이페이지에서 학년과 반 정보를 먼저 설정해주세요!</p>
+          <h2>학년 정보가 없습니다.</h2>
+          <p>마이페이지에서 학년 정보를 먼저 설정해주세요!</p>
           <button className="go-mypage" onClick={() => window.location.href='/mypage'}>설정하러 가기</button>
         </div>
       </div>
     );
   }
 
+  // Parse static timetable data
+  const allData = timetableData as Record<string, any>;
+  const gradeData = allData.subjectsByGrade?.[user.grade] || {};
+
   return (
     <div className="timetable-page animate-fade-in">
       <div className="timetable-header">
         <div className="title-area">
           <h1>🗓️ 학급 시간표</h1>
-          <p className="subtitle">{user.grade}학년 {user.class}반의 주간 시간표입니다.</p>
+          <p className="subtitle">{user.grade}학년 공통 주간 시간표입니다.</p>
         </div>
         <div className="info-badge">
           <BookOpen size={16} /> <span>이번 주 수업</span>
@@ -84,7 +69,8 @@ export default function TimetablePage() {
                     <span className="p-time">{p + 8}:10</span>
                 </div>
                 {days.map(day => {
-                  const subject = timetable[day]?.[p] || '-';
+                  const daySchedule = gradeData[day] || [];
+                  const subject = daySchedule[p - 1] || '-';
                   return (
 
                     <div key={`${day}-${p}`} className={`subject-cell ${subject === '-' ? 'empty' : ''}`}>
@@ -106,7 +92,7 @@ export default function TimetablePage() {
       </div>
 
       <div className="timetable-footer">
-        <p>※ 관리자가 직접 작성한 수동 시간표 정보입니다.</p>
+        <p>※ 설정된 학년 정보를 기반으로 표시되는 시간표입니다.</p>
       </div>
 
     </div>

@@ -9,13 +9,13 @@ interface Props {
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '⭐', '💎', '7️⃣'];
 const PAYOUTS: Record<string, number> = {
-    '7️⃣7️⃣7️⃣': 500,
-    '💎💎💎': 200,
-    '⭐⭐⭐': 50,
-    '🍇🍇🍇': 20,
-    '🍊🍊🍊': 10,
-    '🍋🍋🍋': 5,
-    '🍒🍒🍒': 3,
+    '7️⃣7️⃣7️⃣': 1000,
+    '💎💎💎': 500,
+    '⭐⭐⭐': 100,
+    '🍇🍇🍇': 50,
+    '🍊🍊🍊': 20,
+    '🍋🍋🍋': 10,
+    '🍒🍒🍒': 5,
 };
 
 export default function SlotMachine({ addPoints, currentPoints }: Props) {

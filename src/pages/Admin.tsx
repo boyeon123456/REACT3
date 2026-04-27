@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, Users, FileText, Trash2, CheckCircle, XCircle, Clock, TrendingUp, RefreshCw, Edit, Sparkles, Shield, Calendar } from 'lucide-react';
+import { AlertCircle, Users, FileText, Trash2, CheckCircle, XCircle, Clock, TrendingUp, Edit, Sparkles } from 'lucide-react';
 
 
 import { db } from '../firebase';
 import {
   collection, query, orderBy, onSnapshot, updateDoc, doc,
-  deleteDoc, getDocs, where, limit, getCountFromServer
+  deleteDoc, getDocs, where, getCountFromServer, addDoc, setDoc, writeBatch
 } from 'firebase/firestore';
 import './Admin.css';
 
@@ -19,7 +19,7 @@ export default function Admin() {
 
   const [stats, setStats] = useState({ totalUsers: 0, todayPosts: 0, pendingReports: 0, totalPosts: 0, boardStats: {} as any });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [editPointsId, setEditPointsId] = useState<string | null>(null);
   const [editPointsVal, setEditPointsVal] = useState(0);
 
@@ -200,7 +200,6 @@ export default function Admin() {
   const updateAnnouncements = async (newList: string[]) => {
     setSavingSettings(true);
     try {
-      const { setDoc } = await import('firebase/firestore');
       await setDoc(doc(db, 'settings', 'announcements'), {
         list: newList,
         updatedAt: Date.now()
@@ -219,7 +218,6 @@ export default function Admin() {
     if (handled.length === 0) return;
 
     try {
-      const { writeBatch } = await import('firebase/firestore');
       const batch = writeBatch(db);
       handled.forEach(r => batch.delete(doc(db, 'reports', r.id)));
       await batch.commit();
@@ -262,7 +260,6 @@ export default function Admin() {
             });
         });
 
-        const { setDoc } = await import('firebase/firestore');
         await setDoc(doc(db, 'timetables', `${ttGrade}-${ttClass}`), cleanData, { merge: true });
         alert('시간표가 저장되었습니다.');
     } catch (e) {
@@ -286,10 +283,9 @@ export default function Admin() {
   };
 
   const handleCreateShopItem = async () => {
-    if (!newItemName.trim() || !newItemPrice) return;
+    if (!newItemName.trim() || newItemPrice === undefined || newItemPrice === null) return;
     setShopSaving(true);
     try {
-        const { addDoc } = await import('firebase/firestore');
         await addDoc(collection(db, 'shop_items'), {
             name: newItemName,
             description: newItemDesc,
@@ -302,7 +298,10 @@ export default function Admin() {
         setNewItemDesc('');
         setNewItemPrice(1000);
         alert('아이템이 등록되었습니다.');
-    } catch (e) { console.error(e); } finally { setShopSaving(false); }
+    } catch (e: any) { 
+        console.error(e); 
+        alert('아이템 등록 실패: ' + (e.message || e));
+    } finally { setShopSaving(false); }
   };
 
   const handleDeleteShopItem = async (id: string) => {
@@ -728,4 +727,3 @@ export default function Admin() {
 
   );
 }
-

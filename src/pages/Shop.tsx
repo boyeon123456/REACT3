@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Star, Sparkles, Check, AlertCircle, TrendingUp, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShoppingBag, Sparkles, Check, Info } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, runTransaction } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import './Shop.css';
 
