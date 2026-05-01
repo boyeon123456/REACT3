@@ -1,3 +1,4 @@
+import { Activity, BadgeCheck, FileText, PackageCheck } from 'lucide-react';
 import type { PostItem } from '../../types/profile';
 
 import type { User } from '../../store/authStore';
@@ -10,32 +11,56 @@ interface ProfileStatsProps {
 }
 
 export default function ProfileStats({ user, latestPost, myPostsCount, inventoryCount }: ProfileStatsProps) {
+  const latestDate = latestPost?.created_at
+    ? new Date(latestPost.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+    : '기록 없음';
+  const hasSchoolProfile = Boolean(user.grade && user.class);
+  const stats = [
+    {
+      label: '최근 활동',
+      value: latestDate,
+      description: latestPost ? latestPost.title : '아직 작성한 게시글이 없어요.',
+      icon: Activity,
+      featured: true,
+    },
+    {
+      label: '게시글',
+      value: myPostsCount.toLocaleString(),
+      description: '지금까지 남긴 커뮤니티 글',
+      icon: FileText,
+    },
+    {
+      label: '보유 아이템',
+      value: inventoryCount.toLocaleString(),
+      description: '프로필에 적용 가능한 꾸미기',
+      icon: PackageCheck,
+    },
+    {
+      label: '대표 상태',
+      value: hasSchoolProfile ? '설정 완료' : '보완 필요',
+      description: hasSchoolProfile ? `${user.grade}학년 ${user.class}반 정보가 표시돼요.` : '학년/반을 넣으면 신뢰도가 올라가요.',
+      icon: BadgeCheck,
+    },
+  ];
+
   return (
     <section className="profile-stats-grid">
-      <article className="stat-card feature">
-        <span className="stat-label">최근 활동</span>
-        <strong>{latestPost ? new Date(latestPost.created_at || 0).toLocaleDateString() : '아직 없음'}</strong>
-        <p>{latestPost ? latestPost.title : '첫 게시글을 작성하면 여기 표시돼요.'}</p>
-      </article>
-      <article className="stat-card">
-        <span className="stat-label">게시글</span>
-        <strong>{myPostsCount}</strong>
-        <p>지금까지 작성한 커뮤니티 글 수</p>
-      </article>
-      <article className="stat-card">
-        <span className="stat-label">보유 아이템</span>
-        <strong>{inventoryCount}</strong>
-        <p>프로필에 적용 가능한 꾸미기 아이템</p>
-      </article>
-      <article className="stat-card">
-        <span className="stat-label">대표 상태</span>
-        <strong>{user.grade && user.class ? '학번 설정 완료' : '추가 설정 필요'}</strong>
-        <p>
-          {user.grade && user.class
-            ? '프로필 신뢰도가 더 좋아졌어요.'
-            : '학년/반을 넣으면 프로필 완성도가 올라가요.'}
-        </p>
-      </article>
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+
+        return (
+          <article key={stat.label} className={`stat-card ${stat.featured ? 'feature' : ''}`}>
+            <div className="stat-card-top">
+              <span className="stat-label">{stat.label}</span>
+              <span className="stat-icon">
+                <Icon size={18} />
+              </span>
+            </div>
+            <strong>{stat.value}</strong>
+            <p>{stat.description}</p>
+          </article>
+        );
+      })}
     </section>
   );
 }

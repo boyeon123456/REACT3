@@ -1,4 +1,4 @@
-.timetable-page {
+﻿.timetable-page {
     padding: 24px;
     max-width: 1000px;
     margin: 0 auto;
@@ -162,7 +162,7 @@
 
 .empty-state {
     text-align: center;
-    max-width: 300px;
+    max-width: 320px;
 }
 
 .empty-state h2 {
@@ -178,6 +178,9 @@
 }
 
 .go-mypage {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     background: var(--primary);
     color: white;
     border: none;
@@ -185,6 +188,95 @@
     border-radius: 12px;
     font-weight: 700;
     cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.go-mypage:hover { opacity: 0.85; }
+
+/* 학교 뱃지 */
+.school-badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+/* 동기화 버튼 */
+.refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 아이콘 원형 배경 */
+.icon-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: var(--primary);
+}
+
+.icon-circle.warning {
+    background: rgba(255, 159, 67, 0.15);
+    color: #FF9F43;
+}
+
+/* 에러 상태 */
+.error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.error-container button {
+    padding: 8px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-main);
+    color: var(--text-main);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+/* 스핀 애니메이션 */
+.animate-spin {
+    animation: spin 0.8s linear infinite;
 }
 
 .timetable-footer {
@@ -199,29 +291,29 @@
     .timetable-page {
         padding: 16px;
     }
-    
+
     .timetable-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
     }
-    
+
     .grid-header {
         grid-template-columns: 50px repeat(5, 1fr);
     }
-    
+
     .period-row {
         grid-template-columns: 50px repeat(5, 1fr);
     }
-    
+
     .period-label, .period-num {
         width: 50px;
     }
-    
+
     .subject-name {
         font-size: 12px;
     }
-    
+
     .period-num .p-time {
         display: none;
     }

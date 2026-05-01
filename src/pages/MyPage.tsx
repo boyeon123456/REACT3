@@ -42,11 +42,20 @@ export default function MyPage() {
     );
   }
 
-  const completionCount = [
-    Boolean(user?.photoURL),
-    Boolean(user?.grade && user?.class),
-    inventory.length > 0,
-  ].filter(Boolean).length;
+  // 프로필 완성도: 학생은 사진+학교+인벤토리, 일반은 사진+닉네임+인벤토리
+  const completionChecks = user.isStudent
+    ? [
+        { label: '프로필 사진', done: Boolean(user?.photoURL) },
+        { label: '학교와 반', done: Boolean(user?.schoolCode && user?.grade && user?.class) },
+        { label: '꾸미기 아이템', done: inventory.length > 0 },
+      ]
+    : [
+        { label: '프로필 사진', done: Boolean(user?.photoURL) },
+        { label: '닉네임', done: Boolean(user?.name && user.name !== '이름없음') },
+        { label: '꾸미기 아이템', done: inventory.length > 0 },
+      ];
+
+  const completionCount = completionChecks.filter((item) => item.done).length;
   const completionPercent = Math.round((completionCount / 3) * 100);
 
   const profileNameColor = user?.equipped_items?.nameColor
@@ -68,6 +77,7 @@ export default function MyPage() {
           equippedItems={equippedItems}
           completionPercent={completionPercent}
           completionCount={completionCount}
+          completionChecks={completionChecks}
           profileNameColor={profileNameColor}
           profileBackground={profileBackground}
           avatarFrameColor={avatarFrameColor}

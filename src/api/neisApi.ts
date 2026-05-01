@@ -1,10 +1,7 @@
 import axios from 'axios';
 
-// 학교 정보 (예시: 옥종고등학교)
-const SCHOOL_CONFIG = {
-  ATPT_OFCDC_SC_CODE: 'S10', // 경상남도교육청
-  SD_SCHUL_CODE: '9010061'    // 옥종고등학교
-};
+// 나이스 API 기본 설정
+const NEIS_BASE_URL = 'https://open.neis.go.kr/hub';
 
 interface MealData {
   breakfast: string;
@@ -12,12 +9,54 @@ interface MealData {
   dinner: string;
 }
 
+export interface SchoolInfo {
+  schoolName: string;
+  schoolCode: string;
+  officeCode: string;
+  address: string;
+}
+
+/**
+ * 키워드로 학교를 검색합니다.
+ */
+export async function searchSchool(keyword: string): Promise<SchoolInfo[]> {
+  const url = `${NEIS_BASE_URL}/schoolInfo`;
+  try {
+    const response = await axios.get(url, {
+      params: {
+        Type: 'json',
+        pIndex: 1,
+        pSize: 10,
+        SCHUL_NM: keyword
+      }
+    });
+
+    const data = response.data;
+    if (data.schoolInfo) {
+      return data.schoolInfo[1].row.map((item: any) => ({
+        schoolName: item.SCHUL_NM,
+        schoolCode: item.SD_SCHUL_CODE,
+        officeCode: item.ATPT_OFCDC_SC_CODE,
+        address: item.ORG_RDNMA
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error('학교 검색 중 오류 발생:', error);
+    return [];
+  }
+}
+
 /**
  * 나이스 API를 통해 특정 날짜의 급식 정보를 가져옵니다.
- * @param date YYYYMMDD 형식의 날짜 (예: 20260409)
  */
-export async function getMealData(date: string): Promise<MealData | null> {
-  const url = 'https://open.neis.go.kr/hub/mealServiceDietInfo';
+export async function getMealData(
+  date: string, 
+  officeCode: string, 
+  schoolCode: string
+): Promise<MealData | null> {
+  if (!officeCode || !schoolCode) return null;
+  const url = `${NEIS_BASE_URL}/mealServiceDietInfo`;
   
   try {
     const response = await axios.get(url, {
@@ -25,8 +64,8 @@ export async function getMealData(date: string): Promise<MealData | null> {
         Type: 'json',
         pIndex: 1,
         pSize: 10,
-        ATPT_OFCDC_SC_CODE: SCHOOL_CONFIG.ATPT_OFCDC_SC_CODE,
-        SD_SCHUL_CODE: SCHOOL_CONFIG.SD_SCHUL_CODE,
+        ATPT_OFCDC_SC_CODE: officeCode,
+        SD_SCHUL_CODE: schoolCode,
         MLSV_YMD: date
       }
     });
@@ -53,7 +92,7 @@ export async function getMealData(date: string): Promise<MealData | null> {
     
     return null;
   } catch (error: any) {
-    console.error('나이스 API 호출 중 오류 발생:', error.message);
+    console.error('나이스 급식 API 호출 중 오류 발생:', error.message);
     return null;
   }
 }
@@ -61,7 +100,11 @@ export async function getMealData(date: string): Promise<MealData | null> {
 /**
  * 이번 주(월~금)의 급식 데이터를 모두 가져옵니다.
  */
-export async function getWeeklyMeals(): Promise<Record<string, MealData>> {
+export async function getWeeklyMeals(
+  officeCode: string, 
+  schoolCode: string
+): Promise<Record<string, MealData>> {
+  if (!officeCode || !schoolCode) return {};
   const days = ['월', '화', '수', '목', '금'];
   const today = new Date();
   const currentDay = today.getDay(); 
@@ -72,26 +115,33 @@ export async function getWeeklyMeals(): Promise<Record<string, MealData>> {
   
   const weeklyData: Record<string, MealData> = {};
   
+  const promises = [];
   for (let i = 0; i < 5; i++) {
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
     const yyyymmdd = date.toISOString().split('T')[0].replace(/-/g, '');
     
-    const meal = await getMealData(yyyymmdd);
-    if (meal) {
-      weeklyData[days[i]] = meal;
-    }
+    promises.push(
+      getMealData(yyyymmdd, officeCode, schoolCode).then(meal => {
+        if (meal) weeklyData[days[i]] = meal;
+      })
+    );
   }
   
+  await Promise.all(promises);
   return weeklyData;
 }
 
 /**
  * 특정 월의 전체 급식 데이터를 가져옵니다.
- * @param year 년도
- * @param month 월 (1~12)
  */
-export async function getMonthlyMeals(year: number, month: number): Promise<Record<string, MealData>> {
+export async function getMonthlyMeals(
+  year: number, 
+  month: number,
+  officeCode: string,
+  schoolCode: string
+): Promise<Record<string, MealData>> {
+  if (!officeCode || !schoolCode) return {};
   const lastDay = new Date(year, month, 0).getDate();
   const paddedMonth = String(month).padStart(2, '0');
   const result: Record<string, MealData> = {};
@@ -104,7 +154,7 @@ export async function getMonthlyMeals(year: number, month: number): Promise<Reco
     const formattedDate = `${year}-${paddedMonth}-${paddedDay}`;
     
     promises.push(
-      getMealData(yyyymmdd).then(meal => {
+      getMealData(yyyymmdd, officeCode, schoolCode).then(meal => {
         if (meal && (meal.breakfast || meal.lunch || meal.dinner)) {
           result[formattedDate] = meal;
         }
@@ -118,20 +168,24 @@ export async function getMonthlyMeals(year: number, month: number): Promise<Reco
 
 /**
  * 특정 날짜의 학급 시간표를 가져옵니다.
- * @param date YYYYMMDD
- * @param grade 학년
- * @param className 반
  */
-export async function getTimetableData(date: string, grade: string, className: string) {
-  const url = 'https://open.neis.go.kr/hub/hisTimetable';
+export async function getTimetableData(
+  date: string, 
+  grade: string, 
+  className: string,
+  officeCode: string,
+  schoolCode: string
+) {
+  if (!officeCode || !schoolCode) return [];
+  const url = `${NEIS_BASE_URL}/hisTimetable`;
   try {
     const response = await axios.get(url, {
       params: {
         Type: 'json',
         pIndex: 1,
         pSize: 20,
-        ATPT_OFCDC_SC_CODE: SCHOOL_CONFIG.ATPT_OFCDC_SC_CODE,
-        SD_SCHUL_CODE: SCHOOL_CONFIG.SD_SCHUL_CODE,
+        ATPT_OFCDC_SC_CODE: officeCode,
+        SD_SCHUL_CODE: schoolCode,
         ALL_TI_YMD: date,
         GRADE: grade,
         CLASS_NM: className
@@ -155,8 +209,13 @@ export async function getTimetableData(date: string, grade: string, className: s
 /**
  * 이번 주(월~금)의 전체 시간표를 가져옵니다.
  */
-export async function getWeeklyTimetable(grade: string, className: string) {
-  if (!grade || !className) return {};
+export async function getWeeklyTimetable(
+  grade: string, 
+  className: string,
+  officeCode: string,
+  schoolCode: string
+) {
+  if (!grade || !className || !officeCode || !schoolCode) return {};
   
   const days = ['월', '화', '수', '목', '금'];
   const today = new Date();
@@ -174,7 +233,7 @@ export async function getWeeklyTimetable(grade: string, className: string) {
     const yyyymmdd = date.toISOString().split('T')[0].replace(/-/g, '');
     
     promises.push(
-      getTimetableData(yyyymmdd, grade, className).then(data => {
+      getTimetableData(yyyymmdd, grade, className, officeCode, schoolCode).then(data => {
         weeklyTimetable[days[i]] = data;
       })
     );

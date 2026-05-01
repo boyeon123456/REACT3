@@ -21,6 +21,13 @@
   width: 100%;
 }
 
+@media (max-width: 430px) {
+  .content-area {
+    padding: 12px;
+    gap: 12px;
+  }
+}
+
 .main-content {
   flex: 1;
   min-width: 0;

@@ -28,6 +28,17 @@ export default function ProfileInventory({ user, inventory, handleEquip }: Profi
     if (inventoryFilter === 'all') return inventory;
     return inventory.filter((item) => item.type === inventoryFilter);
   }, [inventory, inventoryFilter]);
+  const filtersWithCounts = useMemo(
+    () =>
+      inventoryFilters.map((filter) => ({
+        ...filter,
+        count:
+          filter.key === 'all'
+            ? inventory.length
+            : inventory.filter((item) => item.type === filter.key).length,
+      })),
+    [inventory]
+  );
 
   return (
     <div className="content-stack">
@@ -44,14 +55,16 @@ export default function ProfileInventory({ user, inventory, handleEquip }: Profi
         </div>
 
         <div className="filter-row">
-          {inventoryFilters.map((filter) => (
+          {filtersWithCounts.map((filter) => (
             <button
               key={filter.key}
               type="button"
+              aria-pressed={inventoryFilter === filter.key}
               className={`filter-chip ${inventoryFilter === filter.key ? 'active' : ''}`}
               onClick={() => setInventoryFilter(filter.key)}
             >
-              {filter.label}
+              <span>{filter.label}</span>
+              <strong>{filter.count}</strong>
             </button>
           ))}
         </div>

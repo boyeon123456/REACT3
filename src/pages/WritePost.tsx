@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ToggleLeft, ToggleRight, Image, PenLine, Hash, AlertTriangle, X, Loader2, Edit3, AlertOctagon } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { db, storage } from '../firebase';
-import { collection, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, updateDoc, increment, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import './WritePost.css';
 
@@ -139,6 +139,8 @@ export default function WritePost() {
       } else {
         // ── 작성 모드 ──
         const authorName = isAnon ? '익명' : user.name;
+        const isPublic = !['1학년', '2학년', '3학년', '학생회'].includes(category);
+
         await addDoc(collection(db, 'posts'), {
           title,
           content,
@@ -146,6 +148,9 @@ export default function WritePost() {
           author: authorName,
           author_id: user.id,
           authorEquipped: user.equipped_items || {},
+          schoolCode: user.schoolCode || null,
+          schoolName: user.schoolName || null,
+          isPublic, // 학교 전용 여부
           imageUrl,
           tags,
           likes: 0,
@@ -156,8 +161,18 @@ export default function WritePost() {
 
         // 포인트 +10 증가
         if (user.role !== 'admin') {
-          const { doc: fbDoc, updateDoc: fbUpdate, increment } = await import('firebase/firestore');
-          await fbUpdate(fbDoc(db, 'users', user.id), { points: increment(10) });
+          await updateDoc(doc(db, 'users', user.id), { points: increment(10) });
+        }
+
+        // 학교 활동 점수 업데이트
+        if (user.schoolCode) {
+          const schoolRef = doc(db, 'school_stats', user.schoolCode);
+          await setDoc(schoolRef, {
+            schoolName: user.schoolName,
+            points: increment(10),
+            postCount: increment(1),
+            lastActive: Date.now()
+          }, { merge: true });
         }
 
         alert('게시글이 등록되었습니다!');
@@ -204,6 +219,15 @@ export default function WritePost() {
               <option>공지사항</option>
             </select>
           </div>
+          {['1학년', '2학년', '3학년', '학생회'].includes(category) && (
+            <div className="school-private-badge animate-scale-in" style={{
+              fontSize: '12px', background: 'var(--primary-light)', color: 'var(--primary)',
+              padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px',
+              fontWeight: '700', border: '1px solid var(--primary)'
+            }}>
+              <AlertOctagon size={14} /> 이 글은 우리 학교 학생들에게만 공개됩니다 🔒
+            </div>
+          )}
           {!isEditMode && (
             <div className="anon-toggle" onClick={() => setIsAnon(!isAnon)}>
               {isAnon ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} />}

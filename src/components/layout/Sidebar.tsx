@@ -80,6 +80,9 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
 
       <nav className="sidebar-nav">
         {navGroups.map((group, idx) => {
+          // 학생이 아닌 경우 '학급 정보' 카테고리 제외
+          if (group.category === '학급 정보' && !user?.isStudent) return null;
+
           const visibleItems = group.items.filter(item => {
             if (item.adminOnly) {
               return user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
@@ -89,9 +92,12 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
 
           if (visibleItems.length === 0) return null;
 
+          // 카테고리명 세련되게 변경
+          const categoryLabel = group.category === '학급 정보' ? '스쿨 라이프' : group.category;
+
           return (
             <div key={idx} className="nav-group">
-              {!collapsed && <div className="nav-group-title">{group.category}</div>}
+              {!collapsed && <div className="nav-group-title">{categoryLabel}</div>}
               {collapsed && idx > 0 && <div className="nav-group-divider" />}
               {visibleItems.map(item => (
                 <NavLink

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import {
   Target,
   Dices,
@@ -21,32 +21,32 @@ import {
   Medal,
   Spade,
   Volleyball,
-  AudioLines,
-  Hammer,
 } from 'lucide-react';
 import { doc, updateDoc, increment, getDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../firebase';
 import { checkAndAwardBadges } from '../hooks/useBadgeCheck';
 import './MiniGame.css';
-import FortuneGame from '../components/MiniGameComonents/fortune';
-import ClickGame from '../components/MiniGameComonents/click';
-import RouletteGame from '../components/MiniGameComonents/roulette';
-import { GaltonBoard } from '../components/MiniGameComonents/GaltonBoard';
-import CoinFlipGame from '../components/MiniGameComonents/coinflip';
-import DiceGame from '../components/MiniGameComonents/dice';
-import NumberGuessGame from '../components/MiniGameComonents/numberGuess';
-import SlotMachineGame from '../components/MiniGameComonents/slotMachine';
-import RockPaperScissorsGame from '../components/MiniGameComonents/rockPaperScissors';
-import GatchaGame from '../components/MiniGameComonents/gatcha';
-import NumberMemoryGame from '../components/MiniGameComonents/memoryGame';
-import BoxGame from '../components/MiniGameComonents/boxGame';
-import BakaraGame from '../components/MiniGameComonents/bakara';
-import LadderGame from '../components/MiniGameComonents/ladderGame';
-import MineSweeperGame from '../components/MiniGameComonents/mineSweeper';
-import QuizGame from '../components/MiniGameComonents/quiz';
-import CrossTheRoadGame from '../components/MiniGameComonents/crossTheRoad';
-import BlackjackGame from '../components/MiniGameComonents/BlackJack';
+
+// Lazy load game components for better performance
+const FortuneGame = lazy(() => import('../components/MiniGameComponents/fortune'));
+const ClickGame = lazy(() => import('../components/MiniGameComponents/click'));
+const RouletteGame = lazy(() => import('../components/MiniGameComponents/roulette'));
+const GaltonBoard = lazy(() => import('../components/MiniGameComponents/GaltonBoard').then(mod => ({ default: mod.GaltonBoard })));
+const CoinFlipGame = lazy(() => import('../components/MiniGameComponents/coinflip'));
+const DiceGame = lazy(() => import('../components/MiniGameComponents/dice'));
+const NumberGuessGame = lazy(() => import('../components/MiniGameComponents/numberGuess'));
+const SlotMachineGame = lazy(() => import('../components/MiniGameComponents/slotMachine'));
+const RockPaperScissorsGame = lazy(() => import('../components/MiniGameComponents/rockPaperScissors'));
+const GatchaGame = lazy(() => import('../components/MiniGameComponents/gatcha'));
+const NumberMemoryGame = lazy(() => import('../components/MiniGameComponents/memoryGame'));
+const BoxGame = lazy(() => import('../components/MiniGameComponents/boxGame'));
+const BakaraGame = lazy(() => import('../components/MiniGameComponents/bakara'));
+const LadderGame = lazy(() => import('../components/MiniGameComponents/ladderGame'));
+const MineSweeperGame = lazy(() => import('../components/MiniGameComponents/mineSweeper'));
+const QuizGame = lazy(() => import('../components/MiniGameComponents/quiz'));
+const CrossTheRoadGame = lazy(() => import('../components/MiniGameComponents/crossTheRoad'));
+const BlackjackGame = lazy(() => import('../components/MiniGameComponents/BlackJack'));
 
 type GameId =
   | 'fortune'
@@ -102,7 +102,7 @@ const games: GameMeta[] = [
   { id: 'blackjack', title: '블랙잭', desc: '21에 가깝게 맞춰 승부하는 카드 게임입니다.', icon: Spade, color: '#0C0FDF', points: '0~1000P' },
   { id: 'timing', title: '타이밍', desc: '정확한 순간을 맞히는 반응형 게임입니다.', icon: Target, color: '#1BE4FF', points: '-100~500P', status: 'soon' },
   { id: 'watermelon', title: '수박 게임', desc: '과일을 합쳐 더 큰 과일을 만들어보세요.', icon: Volleyball, color: '#FFA500', points: '0~500P', status: 'soon' },
-  { id: '2048', title: '2048', desc: '숫자를 합쳐 2048 타일을 만들어보세요.', icon: AudioLines, color: '#D3F15B', points: '+50~1000P', status: 'soon' },
+  { id: '2048', title: '2048', desc: '숫자를 합쳐 2048 타일을 만들어보세요.', icon: Grid2x2, color: '#D3F15B', points: '+50~1000P', status: 'soon' },
 ];
 
 const RANK_ICONS = [
@@ -301,7 +301,11 @@ export default function MiniGame() {
           {!user ? (
             <div className="login-alert">로그인 후 게임을 이용할 수 있습니다.</div>
           ) : (
-            <div className="game-stage">{renderActiveGame()}</div>
+            <div className="game-stage">
+              <Suspense fallback={<div style={{ padding: '20px', textAlign: 'center' }}>게임을 로딩 중입니다...</div>}>
+                {renderActiveGame()}
+              </Suspense>
+            </div>
           )}
         </div>
       )}

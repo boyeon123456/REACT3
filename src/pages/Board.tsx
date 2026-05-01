@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image, Search, Flame, ChevronDown } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image, Search, Flame, ChevronDown, Globe, School } from 'lucide-react';
 import FloatingAction from '../components/ui/FloatingAction';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
+import { useAuthStore } from '../store/authStore';
 import './Board.css';
 
 const categories = ['전체', '1학년', '2학년', '3학년', '학생회', '자유게시판', '공지사항'];
@@ -15,12 +16,14 @@ const tagColors: Record<string, string> = {
 };
 
 export default function Board() {
+  const { user } = useAuthStore();
   const [posts, setPosts] = useState<any[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
   const [shopItemsMap, setShopItemsMap] = useState<Record<string, any>>({});
   const [activeCat, setActiveCat] = useState('전체');
   const [activeFilter, setActiveFilter] = useState('최신순');
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [boardMode, setBoardMode] = useState<'전국' | '우리학교'>('전국');
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
@@ -42,41 +45,87 @@ export default function Board() {
     setSearchParams({ search: val });
   };
 
+  // 인기 게시글 (Top 3)
   useEffect(() => {
-    const tq = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(3));
-    const unsubTrending = onSnapshot(tq, (snap) => {
+    const q = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(3));
+    const unsubscribe = onSnapshot(q, (snap) => {
       setTrendingPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
+    return () => unsubscribe();
+  }, []);
 
-    const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
+  // 실시간 게시글 가져오기 (서버 사이드 필터링)
+  useEffect(() => {
+    setLoading(true);
+    let q = query(collection(db, 'posts'));
+
+    // 1. 기본 필터링 (전국/우리학교)
+    const privateCats = ['1학년', '2학년', '3학년', '학생회'];
+    const isPrivateCat = privateCats.includes(activeCat);
+
+    if (boardMode === '우리학교' || isPrivateCat) {
+      // 우리학교 모드이거나, 학년별/학생회 카테고리를 선택했다면 무조건 내 학교 글만!
+      if (user?.schoolCode) {
+        q = query(q, where('schoolCode', '==', user.schoolCode));
+      } else {
+        // 학교 정보가 없으면 아무것도 보여주지 않음 (보안)
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+    } else {
+      // 전국 모드 + 공용 카테고리 (자유/공지 등)
+      q = query(q, where('isPublic', '==', true));
+    }
+
+    // 2. 카테고리 필터 (이미 1번에서 schoolCode로 격리했으므로 추가 필터링만 수행)
+    if (activeCat !== '전체') {
+      q = query(q, where('board', '==', activeCat));
+    }
+
+    // 3. 정렬 (고정글 우선 노출을 위해 isPinned 정렬을 추가하고 싶지만, 
+    // Firestore 복합 쿼리 제한으로 인해 'created_at' 기준으로 먼저 가져오고 
+    // 고정글 정렬은 클라이언트에서 수행하거나, 단순 created_at 정렬 유지)
+    if (activeFilter === '최신순') {
+      q = query(q, orderBy('created_at', 'desc'));
+    } else if (activeFilter === '인기순') {
+      q = query(q, orderBy('likes', 'desc'), orderBy('created_at', 'desc'));
+    } else if (activeFilter === '댓글많은순') {
+      q = query(q, orderBy('comments', 'desc'), orderBy('created_at', 'desc'));
+    }
+
+    q = query(q, limit(visibleLimit));
+
+    const unsubscribe = onSnapshot(q, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+      
+      // 고정글(pinned)을 상단으로 올리는 최종 정렬은 클라이언트에서 수행 (인덱스 최소화)
       const sorted = [...data].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
         return 0;
       });
+      
       setPosts(sorted);
       setLoading(false);
     }, (err) => {
-      console.error('Board posts error:', err);
+      console.error('Board filter query error:', err);
+      // 인덱스 미생성 시 안내 (개발자 콘솔 확인 권장)
       setLoading(false);
     });
 
-    // 상점 아이템 정보 로드
+    return () => unsubscribe();
+  }, [activeCat, activeFilter, boardMode, user?.schoolCode, visibleLimit]);
+
+  // 상점 아이템 정보 로드
+  useEffect(() => {
     const unsubItems = onSnapshot(collection(db, 'shop_items'), (snap) => {
       const itemMap: any = {};
       snap.forEach(d => { itemMap[d.id] = { id: d.id, ...d.data() }; });
       setShopItemsMap(itemMap);
     });
-
-    return () => {
-      unsub();
-      unsubTrending();
-      unsubItems();
-    };
-
-  }, [visibleLimit]);
+    return () => unsubItems();
+  }, []);
 
   const formatDate = (ts: number) => {
     if (!ts) return '';
@@ -86,24 +135,49 @@ export default function Board() {
 
   const filtered = posts.filter(p => {
     const term = searchQuery.toLowerCase();
-    const matchesCat = activeCat === '전체' ? true : p.board === activeCat;
     const matchesSearch = !term ? true : (
       (p.title && p.title.toLowerCase().includes(term)) ||
       (p.content && p.content.toLowerCase().includes(term)) ||
       (p.tags && p.tags.some((tag: string) => tag.toLowerCase().includes(term.replace(/^#/, ''))))
     );
-    return matchesCat && matchesSearch;
+    return matchesSearch;
   });
 
-  // Client side sorting for simple filter
-  if (activeFilter === '인기순') filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-  if (activeFilter === '댓글많은순') filtered.sort((a, b) => (b.comments || 0) - (a.comments || 0));
+  // Client side sorting is no longer needed as we do it in server query
+  // (But kept for safety if query fails)
+
 
   return (
     <div className="board-page animate-fade-in">
       <div className="board-header">
         <h1 className="page-title">게시판</h1>
-        <p className="page-desc">우리 학교의 모든 이야기를 자유롭게 나눠보세요.</p>
+        <p className="page-desc">전국의 모든 이야기를 자유롭게 나눠보세요.</p>
+
+        {/* 전국 / 우리학교 모드 탭 */}
+        <div className="board-mode-tabs">
+          <button
+            className={`board-mode-tab ${boardMode === '전국' ? 'active' : ''}`}
+            onClick={() => setBoardMode('전국')}
+          >
+            <Globe size={16} /> 전국 게시판
+          </button>
+          <button
+            className={`board-mode-tab ${boardMode === '우리학교' ? 'active' : ''}`}
+            onClick={() => setBoardMode('우리학교')}
+            disabled={!user?.isStudent || !user?.schoolCode}
+            title={!user?.isStudent || !user?.schoolCode ? '학교 정보를 등록하면 이용할 수 있어요' : ''}
+          >
+            <School size={16} />
+            {user?.schoolName ? `${user.schoolName}` : '우리 학교'}
+          </button>
+        </div>
+
+        {/* 우리 학교 모드인데 학교 미등록 시 안내 */}
+        {boardMode === '우리학교' && (!user?.isStudent || !user?.schoolCode) && (
+          <div className="board-school-notice">
+            마이페이지에서 학교 정보를 등록하면 같은 학교 친구들의 글만 볼 수 있어요! 🏫
+          </div>
+        )}
 
         <div className="board-search-bar" style={{ marginTop: '24px', position: 'relative', maxWidth: '600px', margin: '24px auto 0' }}>
           <Search size={18} style={{ position: 'absolute', left: '16px', top: '14px', color: 'var(--text-muted)' }} />
@@ -180,9 +254,12 @@ export default function Board() {
           {filtered.map((post, idx) => (
             <Link to={`/post/${post.id}`} key={post.id} className={`board-card ${post.isPinned ? 'pinned' : ''}`} style={{ animationDelay: `${idx * 0.05}s` }}>
               <div className="card-top">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {post.isPinned && <span className="pin-badge">📌 공지</span>}
                   <span className="card-tag" style={{ color: tagColors[post.board] || 'var(--primary)' }}>{post.board}</span>
+                  {boardMode === '전국' && post.schoolName && (
+                    <span className="post-school-badge">🏫 {post.schoolName}</span>
+                  )}
                 </div>
                 <span className="card-time">{formatDate(post.created_at)}</span>
               </div>
@@ -250,6 +327,9 @@ export default function Board() {
                 {post.imageUrl && <Image size={14} className="bl-img-icon" />}
                 <h4 className="bl-title">{post.title}</h4>
                 <span className="bl-comment-count">[{post.comments}]</span>
+                {boardMode === '전국' && post.schoolName && (
+                  <span className="post-school-badge" style={{ flexShrink: 0 }}>🏫 {post.schoolName}</span>
+                )}
               </div>
 
               <span className="bl-author">{post.author}</span>

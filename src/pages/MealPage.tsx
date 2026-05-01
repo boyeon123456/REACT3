@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Clock, Sunset, Sunrise, ChevronLeft, ChevronRight, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Clock, Sunset, Sunrise, ChevronLeft, ChevronRight, Calendar as CalendarIcon, X, School } from 'lucide-react';
 import { getMonthlyMeals } from '../api/neisApi';
+import { useAuthStore } from '../store/authStore';
+import { Link } from 'react-router-dom';
 import './MealPage.css';
 
 export default function MealPage() {
+  const { user } = useAuthStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [meals, setMeals] = useState<any>({});
@@ -18,8 +21,12 @@ export default function MealPage() {
   };
 
   useEffect(() => {
+    if (!user?.isStudent || !user?.schoolCode) {
+      setMeals({});
+      return;
+    }
     setLoading(true);
-    getMonthlyMeals(year, month)
+    getMonthlyMeals(year, month, user.officeCode || '', user.schoolCode)
       .then(data => {
         setMeals(data || {});
         setLoading(false);
@@ -28,7 +35,7 @@ export default function MealPage() {
         console.error(err);
         setLoading(false);
       });
-  }, [year, month]);
+  }, [year, month, user?.isStudent, user?.schoolCode, user?.officeCode]);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 2, 1));
@@ -79,110 +86,135 @@ export default function MealPage() {
 
   return (
     <div className="meal-page animate-fade-in">
-      <div className="meal-header">
-        <h1>🍱 월간 급식 달력</h1>
-        <p>확인하고 싶은 날짜를 눌러 식단을 확인하세요!</p>
-      </div>
+      {/* 학생이 아니거나 학교 미등록 시 안내 */}
+      {(!user?.isStudent || !user?.schoolCode) && (
+        <div className="meal-header" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <School size={64} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <h1 style={{ marginBottom: '10px' }}>
+            {!user?.isStudent ? '학생 전용 기능입니다' : '학교 정보를 등록해 주세요'}
+          </h1>
+          <p style={{ opacity: 0.6, marginBottom: '24px' }}>
+            {!user?.isStudent
+              ? '급식 정보는 학생 유저에게만 제공됩니다.'
+              : '마이페이지에서 학교, 학년, 반을 등록하면 실시간 급식 정보를 확인할 수 있어요!'}
+          </p>
+          <Link to="/mypage" style={{
+            display: 'inline-block', padding: '12px 28px', borderRadius: '12px',
+            background: 'var(--primary)', color: '#fff', fontWeight: 700, textDecoration: 'none'
+          }}>
+            프로필 설정하러 가기
+          </Link>
+        </div>
+      )}
 
-      <div className="calendar-container">
-        <div className="calendar-header">
-          <button onClick={handlePrevMonth} className="cal-nav-btn"><ChevronLeft size={28} /></button>
-          <div className="cal-title">
-            <CalendarIcon size={28} className="text-primary" />
-            <span>{year}년 {month}월</span>
+      {user?.isStudent && user?.schoolCode && (
+        <>
+          <div className="meal-header">
+            <h1>🍱 {user.schoolName} 월간 급식 달력</h1>
+            <p>확인하고 싶은 날짜를 눌러 식단을 확인하세요!</p>
           </div>
-          <button onClick={handleNextMonth} className="cal-nav-btn"><ChevronRight size={28} /></button>
-        </div>
-        
-        <div className="calendar-grid">
-          {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-            <div key={d} className={`cal-weekday ${i === 0 ? 'sun' : ''} ${i === 6 ? 'sat' : ''}`}>
-              {d}
+
+          <div className="calendar-container">
+            <div className="calendar-header">
+              <button onClick={handlePrevMonth} className="cal-nav-btn"><ChevronLeft size={28} /></button>
+              <div className="cal-title">
+                <CalendarIcon size={28} className="text-primary" />
+                <span>{year}년 {month}월</span>
+              </div>
+              <button onClick={handleNextMonth} className="cal-nav-btn"><ChevronRight size={28} /></button>
             </div>
-          ))}
-          {calendarCells}
-        </div>
-        
-        {loading && <div className="calendar-loading">식단 데이터를 불러오는 중입니다...</div>}
-      </div>
 
-      {/* Modal Overlay */}
-      {selectedDateStr && (
-        <div className="meal-modal-overlay" onClick={closeModal}>
-          <div className="meal-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="meal-modal-header">
-              <span className="meal-modal-title">
-                {selectedDateStr} 식단
-                {selectedDateStr === formatDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate()) && 
-                  <span className="today-badge" style={{fontSize: '12px', background: 'var(--primary)', padding: '4px 10px', borderRadius: '12px', marginLeft: '12px', color: 'white'}}>TODAY</span>
-                }
-              </span>
-              <button className="modal-close-btn" onClick={closeModal}>
-                <X size={24} />
-              </button>
+            <div className="calendar-grid">
+              {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
+                <div key={d} className={`cal-weekday ${i === 0 ? 'sun' : ''} ${i === 6 ? 'sat' : ''}`}>
+                  {d}
+                </div>
+              ))}
+              {calendarCells}
             </div>
-            
-            <div className="meal-modal-body">
-              {isWeekend ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: '18px', fontWeight: 'bold' }}>
-                  급식이 제공되지 않습니다.
-                </div>
-              ) : (!selectedMeal || (!selectedMeal.breakfast && !selectedMeal.lunch && !selectedMeal.dinner)) ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: '18px' }}>
-                  이 날은 등록된 급식 정보가 없습니다.
-                </div>
-              ) : (
-                <>
-                  {selectedMeal.breakfast && (
-                    <>
-                      <div className="meal-section">
-                        <div className="meal-type breakfast">
-                          <Sunrise size={20} /> <span>조식</span>
-                        </div>
-                        <div className="menu-text">
-                          {selectedMeal.breakfast.split(', ').map((item: string, i: number) => (
-                            <div key={i}>{item}</div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="meal-divider"></div>
-                    </>
-                  )}
-                  
-                  {selectedMeal.lunch && (
-                    <>
-                      <div className="meal-section">
-                        <div className="meal-type">
-                          <Clock size={20} /> <span>중식</span>
-                        </div>
-                        <div className="menu-text">
-                          {selectedMeal.lunch.split(', ').map((item: string, i: number) => (
-                            <div key={i}>{item}</div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
 
-                  {selectedMeal.lunch && selectedMeal.dinner && <div className="meal-divider"></div>}
+            {loading && <div className="calendar-loading">식단 데이터를 불러오는 중입니다...</div>}
+          </div>
 
-                  {selectedMeal.dinner && (
-                    <div className="meal-section">
-                      <div className="meal-type dinner">
-                        <Sunset size={20} /> <span>석식</span>
-                      </div>
-                      <div className="menu-text">
-                        {selectedMeal.dinner.split(', ').map((item: string, i: number) => (
-                          <div key={i}>{item}</div>
-                        ))}
-                      </div>
+          {/* Modal Overlay */}
+          {selectedDateStr && (
+            <div className="meal-modal-overlay" onClick={closeModal}>
+              <div className="meal-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="meal-modal-header">
+                  <span className="meal-modal-title">
+                    {selectedDateStr} 식단
+                    {selectedDateStr === formatDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate()) &&
+                      <span className="today-badge" style={{fontSize: '12px', background: 'var(--primary)', padding: '4px 10px', borderRadius: '12px', marginLeft: '12px', color: 'white'}}>TODAY</span>
+                    }
+                  </span>
+                  <button className="modal-close-btn" onClick={closeModal}>
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="meal-modal-body">
+                  {isWeekend ? (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: '18px', fontWeight: 'bold' }}>
+                      급식이 제공되지 않습니다.
                     </div>
+                  ) : (!selectedMeal || (!selectedMeal.breakfast && !selectedMeal.lunch && !selectedMeal.dinner)) ? (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: '18px' }}>
+                      이 날은 등록된 급식 정보가 없습니다.
+                    </div>
+                  ) : (
+                    <>
+                      {selectedMeal.breakfast && (
+                        <>
+                          <div className="meal-section">
+                            <div className="meal-type breakfast">
+                              <Sunrise size={20} /> <span>조식</span>
+                            </div>
+                            <div className="menu-text">
+                              {selectedMeal.breakfast.split(', ').map((item: string, i: number) => (
+                                <div key={i}>{item}</div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="meal-divider"></div>
+                        </>
+                      )}
+
+                      {selectedMeal.lunch && (
+                        <>
+                          <div className="meal-section">
+                            <div className="meal-type">
+                              <Clock size={20} /> <span>중식</span>
+                            </div>
+                            <div className="menu-text">
+                              {selectedMeal.lunch.split(', ').map((item: string, i: number) => (
+                                <div key={i}>{item}</div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {selectedMeal.lunch && selectedMeal.dinner && <div className="meal-divider"></div>}
+
+                      {selectedMeal.dinner && (
+                        <div className="meal-section">
+                          <div className="meal-type dinner">
+                            <Sunset size={20} /> <span>석식</span>
+                          </div>
+                          <div className="menu-text">
+                            {selectedMeal.dinner.split(', ').map((item: string, i: number) => (
+                              <div key={i}>{item}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { getWeeklyMeals } from '../../api/neisApi';
-import mockData from '../../data/timetable.json';
+import { useAuthStore } from '../../store/authStore';
 import './RightPanel.css';
 
 // Static items removed as we now fetch from backend
@@ -18,6 +18,8 @@ export default function RightPanel() {
   const [mealDayIndex, setMealDayIndex] = useState(0);
   const daysKR = ['월', '화', '수', '목', '금'];
 
+  const { user } = useAuthStore();
+
   useEffect(() => {
     const qPosts = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(5));
     const unsubPosts = onSnapshot(qPosts, snap => {
@@ -30,37 +32,42 @@ export default function RightPanel() {
       setTopUsers(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
     });
 
-    // Fetch timetable from static file
-    const grade1Data = mockData.subjectsByGrade['1'] as Record<string, string[]>;
-    const formattedTimetable: any = {};
-    for(const d in grade1Data) {
-      formattedTimetable[d] = grade1Data[d].map((subject: string, idx: number) => ({
-        period: idx + 1,
-        subject: subject
-      }));
+    // Fetch dynamic school data if user is a student
+    if (user?.isStudent && user?.schoolCode) {
+      // Fetch weekly timetable from NEIS
+      import('../../api/neisApi').then(({ getWeeklyTimetable }) => {
+        getWeeklyTimetable(
+          user.grade || '1', 
+          user.class || '1', 
+          user.officeCode || '', 
+          user.schoolCode || ''
+        ).then(data => {
+          setFullTimetable(data);
+        });
+      });
+
+      // Fetch weekly meals from NEIS
+      getWeeklyMeals(user.officeCode || '', user.schoolCode || '')
+        .then(data => {
+          setFullMeals(data);
+        })
+        .catch(err => console.error('Failed to fetch meals:', err));
+    } else {
+      setFullTimetable(null);
+      setFullMeals(null);
     }
-    setFullTimetable(formattedTimetable);
+
     const day = new Date().getDay(); // 0(Sun) ~ 6(Sat)
     let initialIdx = day - 1; // 0=Mon, 4=Fri
     if (initialIdx < 0 || initialIdx > 4) initialIdx = 0; // Default Mon
     setViewDayIndex(initialIdx);
-
-    // Fetch meals from Neis API directly
-    getWeeklyMeals()
-      .then(data => {
-        setFullMeals(data);
-        const day = new Date().getDay();
-        let initialIdx = day - 1;
-        if (initialIdx < 0 || initialIdx > 4) initialIdx = 0;
-        setMealDayIndex(initialIdx);
-      })
-      .catch(err => console.error('Failed to fetch meals:', err));
+    setMealDayIndex(initialIdx);
 
     return () => {
       unsubPosts();
       unsubUsers();
     };
-  }, []);
+  }, [user?.isStudent, user?.schoolCode, user?.officeCode, user?.grade, user?.class]);
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return '🏆';
@@ -114,7 +121,7 @@ export default function RightPanel() {
         <h3 className="widget-title" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Clock size={18} className="text-secondary" />
-            1학년 시간표 ({daysKR[viewDayIndex]}요일)
+            {user?.schoolName ? `${user.schoolName} 시간표` : '학급 시간표'} ({daysKR[viewDayIndex]}요일)
           </div>
           <div className="day-nav-btns">
             <button className="nav-btn" onClick={handlePrevDay} title="이전 요일"><ChevronLeft size={16} /></button>
@@ -122,8 +129,17 @@ export default function RightPanel() {
           </div>
         </h3>
         <div className="schedule-list">
-          {currentViewData.length === 0 ? (
-            <div className="schedule-item">오늘 일정이 없습니다.</div>
+          {!user?.isStudent ? (
+            <div className="empty-widget-state">
+              <p>학생 유저를 위한 서비스입니다.</p>
+            </div>
+          ) : !user?.schoolCode ? (
+            <div className="empty-widget-state">
+              <p>학교 정보를 등록해 주세요.</p>
+              <Link to="/mypage" className="setup-link">설정하기</Link>
+            </div>
+          ) : currentViewData.length === 0 ? (
+            <div className="schedule-item">일정이 없습니다.</div>
           ) : (
             currentViewData.map((item: any, i: number) => (
               <div key={i} className={`schedule-item normal`}>
@@ -147,17 +163,29 @@ export default function RightPanel() {
           </div>
         </h3>
         <div className="school-info-card">
-          <div className="meal-section">
-            <div className="meal-info">
-              <span className="meal-label">🍚 중식</span>
-              <p>{currentMeal?.lunch || '데이터가 없습니다.'}</p>
+          {!user?.isStudent ? (
+            <div className="empty-widget-state">
+              <p>급식 정보는 학생 유저 전용입니다.</p>
             </div>
-            <div className="meal-info" style={{ marginTop: '8px' }}>
-              <span className="meal-label" style={{ color: '#FF7675' }}>🌙 석식</span>
-              <p>{currentMeal?.dinner || '데이터가 없습니다.'}</p>
+          ) : !user?.schoolCode ? (
+            <div className="empty-widget-state">
+              <p>학교 정보를 등록해 주세요.</p>
             </div>
-          </div>
-          <Link to="/meals" className="view-more-btn">자세히 보기</Link>
+          ) : (
+            <div className="meal-section">
+              <div className="meal-info">
+                <span className="meal-label">🍚 중식</span>
+                <p>{currentMeal?.lunch || '데이터가 없습니다.'}</p>
+              </div>
+              <div className="meal-info" style={{ marginTop: '8px' }}>
+                <span className="meal-label" style={{ color: '#FF7675' }}>🌙 석식</span>
+                <p>{currentMeal?.dinner || '데이터가 없습니다.'}</p>
+              </div>
+            </div>
+          )}
+          {user?.isStudent && user?.schoolCode && (
+            <Link to="/meals" className="view-more-btn">자세히 보기</Link>
+          )}
         </div>
       </div>
 

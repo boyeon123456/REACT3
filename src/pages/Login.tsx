@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Search, Check, ChevronDown } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useAuthStore } from '../store/authStore';
+import SchoolSearchModal from '../components/profile/SchoolSearchModal';
+import type { SchoolInfo } from '../api/neisApi';
+import { db } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import './Login.css';
 
 export default function Login() {
@@ -16,6 +20,14 @@ export default function Login() {
   const [name, setName] = useState('');
   const [errorMSG, setErrorMSG] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // 학교 관련 상태
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
+  const [grade, setGrade] = useState('1');
+  const [classNum, setClassNum] = useState('1');
+  const [showSchoolSearch, setShowSchoolSearch] = useState(false);
+  const [isStudent, setIsStudent] = useState(true);
+  const [signupStep, setSignupStep] = useState(1); // 1: 기본정보, 2: 학교설정
 
   // 구글 리다이렉트 후 결과 처리
   useEffect(() => {
@@ -43,9 +55,32 @@ export default function Login() {
         await signInWithEmailAndPassword(auth, email, password);
         // onAuthStateChanged 가 user 업데이트 후 if(user) Navigate 자동 이동
       } else {
+        // 회원가입 시 필수 체크
+        if (isStudent && !schoolInfo) {
+          setErrorMSG('학생이라면 학교를 먼저 선택해주세요!');
+          return;
+        }
+
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
-        // 마찬가지로 자동 이동
+
+        // 신규 유저 Firestore 문서 직접 생성 (authStore가 감지하기 전에 미리 생성하여 학교 정보 포함)
+        const userRef = doc(db, 'users', userCred.user.uid);
+        await setDoc(userRef, {
+          id: userCred.user.uid,
+          email: userCred.user.email,
+          name: name,
+          points: 100, // 가입 축하 포인트
+          level: 1,
+          role: 'user',
+          isStudent: isStudent,
+          schoolName: schoolInfo?.schoolName || '',
+          schoolCode: schoolInfo?.schoolCode || '',
+          officeCode: schoolInfo?.officeCode || '',
+          grade: isStudent ? grade : '',
+          class: isStudent ? classNum : '',
+          created_at: Date.now()
+        });
       }
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential') {
@@ -74,12 +109,12 @@ export default function Login() {
     <div className="login-page">
       <div className="login-pattern-bg"></div>
 
-      <div className="login-card-container animate-fade-in">
+      <div className={`login-card-container ${!isLogin ? 'signup-mode' : ''}`}>
         <div className="login-brand">
           <Link to="/" className="login-logo-box">
             <img src="src\assets\670483720_1443067160639588_6486915911126418629_n.png" alt="logo" width={180} height={50} ></img>
           </Link>
-          <p className="login-subtitle">우리 학교의 모든 것, 여기서 시작해볼까요?</p>
+          <p className="login-subtitle">학생과 일반인 모두를 위한 커뮤니티 플랫폼</p>
         </div>
 
         <div className="login-toggle-wrap">
@@ -94,71 +129,137 @@ export default function Login() {
             </div>
           )}
 
-          {!isLogin && (
-            <div className="input-group">
-              <label>이름 (닉네임/실명)</label>
-              <div className="input-wrapper">
-                <input type="text" placeholder="홍길동" required value={name} onChange={e => setName(e.target.value)} />
+          {/* ── 로그인 모드 ── */}
+          {isLogin && (
+            <>
+              <div className="input-group">
+                <label>이메일</label>
+                <div className="input-wrapper">
+                  <Mail size={18} className="input-icon" />
+                  <input type="email" placeholder="email@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
               </div>
+
+              <div className="input-group">
+                <div className="label-row">
+                  <label>비밀번호</label>
+                </div>
+                <div className="input-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="login-submit-btn">
+                로그인하기 <ArrowRight size={18} />
+              </button>
+            </>
+          )}
+
+          {/* ── 회원가입 모드 (Step 1) ── */}
+          {!isLogin && signupStep === 1 && (
+            <div className="signup-step animate-fade-in">
+              <div className="input-group">
+                <label>이름 (닉네임)</label>
+                <div className="input-wrapper">
+                  <input type="text" placeholder="홍길동" required value={name} onChange={e => setName(e.target.value)} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>이메일</label>
+                <div className="input-wrapper">
+                  <Mail size={18} className="input-icon" />
+                  <input type="email" placeholder="email@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>비밀번호</label>
+                <div className="input-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" required value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
+                </div>
+              </div>
+              <button type="button" className="login-submit-btn" onClick={() => setSignupStep(2)} disabled={!email || !password || !name}>
+                다음 단계로 <ArrowRight size={18} />
+              </button>
             </div>
           )}
 
-          <div className="input-group">
-            <label>이메일</label>
-            <div className="input-wrapper">
-              <Mail size={18} className="input-icon" />
-              <input type="email" placeholder="email@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
-          </div>
+          {/* ── 회원가입 모드 (Step 2) ── */}
+          {!isLogin && signupStep === 2 && (
+            <div className="signup-step animate-slide-up">
+              <div className="input-group">
+                <label>당신은 누구인가요?</label>
+                <div className="role-selector-v2">
+                  <button type="button" className={`rv2-card ${isStudent ? 'active' : ''}`} onClick={() => setIsStudent(true)}>
+                    <div className="rv2-icon">🎓</div>
+                    <span>학생</span>
+                  </button>
+                  <button type="button" className={`rv2-card ${!isStudent ? 'active' : ''}`} onClick={() => setIsStudent(false)}>
+                    <div className="rv2-icon">🏠</div>
+                    <span>일반인</span>
+                  </button>
+                </div>
+              </div>
 
-          <div className="input-group">
-            <div className="label-row">
-              <label>비밀번호</label>
-            </div>
-            <div className="input-wrapper">
-              <Lock size={18} className="input-icon" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px', color: '#aaa', display: 'flex', alignItems: 'center' }}
-              >
+              {isStudent && (
+                <>
+                  <div className="input-group">
+                    <label>우리 학교 찾기</label>
+                    <div className="school-search-box-v2" onClick={() => setShowSchoolSearch(true)}>
+                      <Search size={18} />
+                      <span>{schoolInfo ? schoolInfo.schoolName : '학교 이름을 검색하세요'}</span>
+                      {schoolInfo && <Check size={16} className="text-primary" />}
+                    </div>
+                  </div>
+                  <div className="input-row">
+                    <div className="input-group">
+                      <label>학년</label>
+                      <div className="custom-select-v2">
+                        <select value={grade} onChange={e => setGrade(e.target.value)}>
+                          {Array.from({ length: (schoolInfo?.schoolName?.includes('초등학교') ? 6 : 3) }, (_, i) => String(i + 1)).map(g => (
+                            <option key={g} value={g}>{g}학년</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} />
+                      </div>
+                    </div>
+                    <div className="input-group">
+                      <label>반</label>
+                      <div className="custom-select-v2">
+                        <select value={classNum} onChange={e => setClassNum(e.target.value)}>
+                          {Array.from({ length: 15 }, (_, i) => String(i + 1)).map(c => <option key={c} value={c}>{c}반</option>)}
+                        </select>
+                        <ChevronDown size={14} />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
-              </button>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button type="button" className="lt-btn" style={{ flex: '0 0 80px', background: 'var(--bg-hover)' }} onClick={() => setSignupStep(1)}>이전</button>
+                <button type="submit" className="login-submit-btn" style={{ flex: 1, margin: 0 }}>
+                  가입 완료하기 <Check size={18} />
+                </button>
+              </div>
             </div>
-          </div>
-
-          <button type="submit" className="login-submit-btn">
-            {isLogin ? '이메일로 로그인하기' : '회원가입하기'} <ArrowRight size={18} />
-          </button>
+          )}
         </form>
 
-        <div className="login-divider">
-          <span>또는 아주 빠르게 시작하기</span>
-        </div>
 
-        <div className="social-login-group">
-          <button type="button" className="test-login-btn" style={{
-            width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #EAECEF',
-            background: '#fff', cursor: 'pointer', fontWeight: 'bold', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', gap: '10px'
-          }} onClick={handleGoogleLogin}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.8 15.71 17.58V20.34H19.28C21.36 18.42 22.56 15.6 22.56 12.25Z" fill="#4285F4" />
-              <path d="M12 23C14.97 23 17.46 22.02 19.28 20.34L15.71 17.58C14.73 18.24 13.48 18.66 12 18.66C9.13 18.66 6.71 16.73 5.8 14.13H2.12V16.98C3.94 20.59 7.68 23 12 23Z" fill="#34A853" />
-              <path d="M5.8 14.13C5.57 13.43 5.44 12.73 5.44 12C5.44 11.27 5.57 10.57 5.8 9.87V7.02H2.12C1.37 8.52 0.94 10.22 0.94 12C0.94 13.78 1.37 15.48 2.12 16.98L5.8 14.13Z" fill="#FBBC05" />
-              <path d="M12 5.34C13.62 5.34 15.06 5.89 16.21 6.99L19.35 3.85C17.46 2.09 14.97 1 12 1C7.68 1 3.94 3.41 2.12 7.02L5.8 9.87C6.71 7.27 9.13 5.34 12 5.34Z" fill="#EA4335" />
-            </svg>
-            구글 계정으로 로그인
-          </button>
-        </div>
+        <SchoolSearchModal
+          isOpen={showSchoolSearch}
+          onClose={() => setShowSchoolSearch(false)}
+          onSelect={(s) => { setSchoolInfo(s); setShowSchoolSearch(false); }}
+        />
       </div>
     </div>
   );

@@ -15,6 +15,10 @@ export interface User {
   badges?: string[];
   gameCount?: number;
   isBanned?: boolean;
+  isStudent?: boolean;
+  schoolName?: string;
+  schoolCode?: string;
+  officeCode?: string;
   grade?: string;
   class?: string;
   equipped_items?: Record<string, string>;
@@ -56,6 +60,10 @@ function withDefaults(user: User): User {
       },
     },
     equipped_items: user.equipped_items || {},
+    isStudent: user.isStudent ?? false,
+    schoolName: user.schoolName || '',
+    schoolCode: user.schoolCode || '',
+    officeCode: user.officeCode || '',
     grade: user.grade || '',
     class: user.class || '',
   };
@@ -73,38 +81,21 @@ export const useAuthStore = create<AuthState>((set) => {
         if (userSnap.exists()) {
           const userData = withDefaults(userSnap.data() as User);
 
-          // 관리자 리스트가 변경되었을 경우Firestore 업데이트
+          // 관리자 권한 업데이트
           if (userData.role !== (isAdmin ? 'admin' : 'user')) {
             await setDoc(userRef, { ...userData, role: isAdmin ? 'admin' : userData.role }, { merge: true });
             userData.role = isAdmin ? 'admin' : userData.role;
           }
 
-          if (fbUser.photoURL && userData.photoURL !== fbUser.photoURL) {
+          if (fbUser.photoURL && !userData.photoURL) {
             await setDoc(userRef, { ...userData, photoURL: fbUser.photoURL || null }, { merge: true });
             set({ user: withDefaults({ ...userData, photoURL: fbUser.photoURL || null }), loading: false });
           } else {
             set({ user: userData, loading: false });
           }
-
         } else {
-          const newUser: User = {
-            id: fbUser.uid,
-            email: fbUser.email || '',
-            name: fbUser.displayName || '이름없음',
-            points: 0,
-            level: 1,
-            role: isAdmin ? 'admin' : 'user',
-            photoURL: fbUser.photoURL || null,
-            grade: '',
-            class: '',
-            equipped_items: {},
-            settings: defaultSettings,
-          };
-
-
-
-          await setDoc(userRef, newUser);
-          set({ user: newUser, loading: false });
+          // 문서가 없으면 로딩 해제 (생성은 Login.tsx가 담당)
+          set({ user: null, loading: false });
         }
       } else {
         set({ user: null, loading: false });

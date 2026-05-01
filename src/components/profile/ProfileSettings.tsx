@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react';
+import { Bell, LogOut, Mail, Moon, ShieldAlert, UserRound } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
 import { defaultSettings as defaultSettingsProfile } from '../../types/profile';
 
@@ -35,6 +35,9 @@ export default function ProfileSettings({
 
         <div className="settings-group">
           <div className="setting-row">
+            <span className="setting-icon">
+              <UserRound size={18} />
+            </span>
             <div>
               <strong>프로필 편집</strong>
               <p>닉네임, 학년/반, 사진을 한 번에 수정할 수 있어요.</p>
@@ -45,22 +48,36 @@ export default function ProfileSettings({
           </div>
 
           <div className="setting-row">
+            <span className="setting-icon">
+              <Moon size={18} />
+            </span>
             <div>
               <strong>테마 전환</strong>
               <p>현재 테마: {theme === 'dark' ? '다크 모드' : '라이트 모드'}</p>
             </div>
-            <button type="button" className={`toggle-pill ${theme === 'dark' ? 'on' : ''}`} onClick={toggleTheme}>
+            <button
+              type="button"
+              aria-label="테마 전환"
+              aria-pressed={theme === 'dark'}
+              className={`toggle-pill ${theme === 'dark' ? 'on' : ''}`}
+              onClick={toggleTheme}
+            >
               <span />
             </button>
           </div>
 
           <div className="setting-row">
+            <span className="setting-icon">
+              <Bell size={18} />
+            </span>
             <div>
               <strong>앱 알림</strong>
               <p>새 댓글이나 중요한 소식을 앱 안에서 받아봅니다.</p>
             </div>
             <button
               type="button"
+              aria-label="앱 알림"
+              aria-pressed={Boolean(settings?.notifications?.inApp)}
               className={`toggle-pill ${settings?.notifications?.inApp ? 'on' : ''}`}
               onClick={() => handleToggleNotification('inApp', settings, defaultSettingsProfile)}
               disabled={savingSettingKey === 'inApp'}
@@ -70,12 +87,17 @@ export default function ProfileSettings({
           </div>
 
           <div className="setting-row">
+            <span className="setting-icon">
+              <Mail size={18} />
+            </span>
             <div>
               <strong>이메일 알림</strong>
               <p>중요한 안내를 이메일로 받아볼 수 있어요.</p>
             </div>
             <button
               type="button"
+              aria-label="이메일 알림"
+              aria-pressed={Boolean(settings?.notifications?.email)}
               className={`toggle-pill ${settings?.notifications?.email ? 'on' : ''}`}
               onClick={() => handleToggleNotification('email', settings, defaultSettingsProfile)}
               disabled={savingSettingKey === 'email'}
@@ -96,6 +118,9 @@ export default function ProfileSettings({
 
         <div className="settings-group">
           <div className="setting-row">
+            <span className="setting-icon danger">
+              <LogOut size={18} />
+            </span>
             <div>
               <strong>로그아웃</strong>
               <p>현재 기기에서 안전하게 로그아웃합니다.</p>
@@ -107,6 +132,9 @@ export default function ProfileSettings({
           </div>
 
           <div className="setting-row">
+            <span className="setting-icon danger">
+              <ShieldAlert size={18} />
+            </span>
             <div>
               <strong>계정 탈퇴</strong>
               <p>탈퇴 기능은 아직 안전한 데이터 정리 흐름을 붙이기 전 단계예요.</p>

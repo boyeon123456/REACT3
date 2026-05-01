@@ -338,3 +338,38 @@
     display: none;
   }
 }
+
+/* 빈 위젯 상태 */
+.empty-widget-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  text-align: center;
+}
+
+.empty-widget-state p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.setup-link {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.setup-link:hover {
+  background: var(--primary);
+  color: white;
+}

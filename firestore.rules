@@ -16,94 +16,81 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
-
-
+    // 차단 여부 확인 (문서가 없을 때는 차단되지 않은 것으로 간주)
     function isNotBanned() {
       return isAuthenticated() && 
-        (!('isBanned' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+        (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+         !('isBanned' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false);
     }
 
+    // ──────────────────────────────────────────
     // 유저 문서
-
-    // 읽기: 로그인한 모든 유저 (리더보드, 프로필 표시용)
-    // 쓰기: 본인 문서만 수정 가능
     // ──────────────────────────────────────────
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId && isNotBanned();
+      // 가입 시 create는 isNotBanned 없이 허용
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId && isNotBanned();
+      allow delete: if isAdmin();
+
+      // 인벤토리 (서브컬렉션)
+      match /inventory/{itemId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
 
+    // ──────────────────────────────────────────
+    // 학교 통계 및 랭킹 (school_stats)
+    // ──────────────────────────────────────────
+    match /school_stats/{schoolCode} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isNotBanned();
+    }
 
     // ──────────────────────────────────────────
-    // 게시글
-    // 읽기: 비로그인도 허용 (공개 게시판)
-    // 작성: 로그인 필수
-    // 수정: 로그인 유저 (likes, views, comments 카운트 업데이트 포함)
-    // 삭제: 작성자 본인 또는 관리자만
+    // 게시글 및 댓글
     // ──────────────────────────────────────────
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isNotBanned();
+      allow create: if isAuthenticated() && isNotBanned();
       allow update: if isNotBanned();
       allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.author_id);
 
-      // 댓글 서브컬렉션
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isNotBanned();
+        allow create: if isAuthenticated() && isNotBanned();
         allow update: if isNotBanned();
         allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.author_id);
       }
     }
 
-
     // ──────────────────────────────────────────
-    // 알림 (notifications)
-    // 읽기/쓰기: 알림 수신자 본인 또는 알림 생성 시 (로그인 필수)
+    // 기타 컬렉션
     // ──────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
+      allow read, update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated();
     }
 
-    // 신고 (reports)
     match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if isNotBanned();
-      allow update, delete: if isAdmin();
+      allow read, update, delete: if isAdmin();
+      allow create: if isAuthenticated() && isNotBanned();
     }
 
-    // 시스템 설정 (settings)
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // 시간표 (timetables)
     match /timetables/{ttId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // 상점 아이템 (shop_items)
     match /shop_items/{itemId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
-    // 유저별 인벤토리 (서브컬렉션)
-    match /users/{userId}/inventory/{itemId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId;
-    }
   }
 }
-
-
-

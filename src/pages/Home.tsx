@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles, Utensils, CalendarDays } from 'lucide-react';
+import { Megaphone, TrendingUp, Clock, ThumbsUp, MessageCircle, Eye, ChevronRight, Sparkles, Utensils, CalendarDays, Trophy, Medal } from 'lucide-react';
 import { getMealData } from '../api/neisApi';
 import { useAuthStore } from '../store/authStore';
 import { Link } from 'react-router-dom';
@@ -22,6 +22,7 @@ const hotTopics = [
 export default function Home() {
   const [popularPosts, setPopularPosts] = useState<any[]>([]);
   const [latestPosts, setLatestPosts] = useState<any[]>([]);
+  const [schoolRankings, setSchoolRankings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<string[]>(["환영합니다! 우리 학교 커뮤니티입니다.", "건전한 커뮤니티 문화를 함께 만들어가요."]);
 
@@ -58,52 +59,56 @@ export default function Home() {
     );
 
     // 오늘의 급식 & 시간표 조회
-    const now = new Date();
     const fetchTodayInfo = async () => {
+      if (!user?.isStudent || !user?.schoolCode) {
+        setTodayMeal(null);
+        setTodayTimetable([]);
+        return;
+      }
+
+      const now = new Date();
+      const yyyymmdd = now.toISOString().split('T')[0].replace(/-/g, '');
+      
       try {
-        const yyyymmdd = now.toISOString().split('T')[0].replace(/-/g, '');
-        const meal = await getMealData(yyyymmdd);
+        // 급식 데이터 가져오기
+        const meal = await getMealData(yyyymmdd, user.officeCode || '', user.schoolCode);
         setTodayMeal(meal);
+
+        // 오늘 시간표 가져오기
+        const { getTimetableData } = await import('../api/neisApi');
+        if (user.grade && user.class) {
+          const ttData = await getTimetableData(
+            yyyymmdd, 
+            user.grade, 
+            user.class, 
+            user.officeCode || '', 
+            user.schoolCode
+          );
+          setTodayTimetable(ttData.map((item: any) => ({
+            period: item.period,
+            subject: item.subject
+          })));
+        }
       } catch (e) {
-        console.error('Meal fetch error:', e);
+        console.error('Home today info fetch error:', e);
       }
     };
 
     fetchTodayInfo();
 
-    // 오늘의 시간표 실시간 구독 (Firestore Manual)
-    let unsubTT: any = null;
-    if (user?.grade && user?.class) {
-      unsubTT = onSnapshot(doc(db, 'timetables', `${user.grade}-${user.class}`),
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            const daysK = ['일', '월', '화', '수', '목', '금', '토'];
-            const dayName = daysK[now.getDay()];
-            const todayList = data[dayName] || {};
-
-            const formatted = Object.entries(todayList)
-              .filter(([_, s]) => s !== '') // 빈 값 제외
-              .map(([p, s]) => ({
-                period: p,
-                subject: s
-              })).sort((a: any, b: any) => parseInt(a.period) - parseInt(b.period));
-
-            setTodayTimetable(formatted);
-          }
-        },
-        (err) => {
-          console.error('Timetable sync error:', err);
-        }
-      );
-    }
+    // 학교 랭킹 구독
+    const unsubRank = onSnapshot(query(collection(db, 'school_stats'), orderBy('points', 'desc'), limit(5)),
+      (snap) => {
+        setSchoolRankings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+    );
 
     return () => {
       unsub();
       unsubAnnounce();
-      if (unsubTT) unsubTT();
+      unsubRank();
     };
-  }, [user?.grade, user?.class]);
+  }, [user?.isStudent, user?.schoolCode, user?.officeCode, user?.grade, user?.class]);
 
 
 
@@ -136,6 +141,21 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {!user?.schoolCode && (
+        <div className="school-setup-banner animate-slide-up">
+          <div className="ss-content">
+            <div className="ss-icon">🏫</div>
+            <div className="ss-text">
+              <h3>아직 우리 학교가 등록되지 않았어요!</h3>
+              <p>지금 학교를 등록하고 실시간 급식과 시간표를 확인해보세요.</p>
+            </div>
+          </div>
+          <Link to="/mypage" className="ss-btn">
+            학교 등록하러 가기 <ChevronRight size={18} />
+          </Link>
+        </div>
+      )}
 
       <div className="home-dashboard">
         <div className="dash-card meal-dash" onClick={() => window.location.href = '/meals'}>
@@ -180,6 +200,37 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <section className="home-section school-ranking-section">
+        <div className="section-header">
+          <h2 className="section-title">
+            <Trophy size={22} style={{ color: '#FFD700' }} /> 
+            <span className="text-gradient">전국 학교 랭킹</span>
+            <span className="ranking-badge">실시간 활동 점수</span>
+          </h2>
+        </div>
+        <div className="ranking-grid">
+          {schoolRankings.map((school, i) => (
+            <div key={school.id} className={`ranking-card rank-${i + 1}`}>
+              <div className="rank-num">
+                {i === 0 ? <Medal size={24} color="#FFD700" /> : 
+                 i === 1 ? <Medal size={24} color="#C0C0C0" /> : 
+                 i === 2 ? <Medal size={24} color="#CD7F32" /> : (i + 1)}
+              </div>
+              <div className="rank-info">
+                <span className="rank-school-name">{school.schoolName}</span>
+                <span className="rank-points">{school.points?.toLocaleString() || 0} pts</span>
+              </div>
+              <div className="rank-progress-bar">
+                <div className="rank-progress-fill" style={{ width: `${Math.min(100, (school.points / (schoolRankings[0]?.points || 1)) * 100)}%` }}></div>
+              </div>
+            </div>
+          ))}
+          {schoolRankings.length === 0 && (
+            <div className="ranking-empty">아직 랭킹 정보가 없습니다. 첫 활동을 시작해보세요!</div>
+          )}
+        </div>
+      </section>
 
       <div className="hot-topics">
 

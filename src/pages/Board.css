@@ -373,4 +373,68 @@
   .board-controls { flex-wrap: wrap; }
   .bl-views, .bl-likes, .bl-author { display: none; }
   .view-toggle { display: none; }
+  .board-mode-tabs { flex-wrap: wrap; }
+}
+
+/* 게시판 모드 탭 (전국 / 우리학교) */
+.board-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.board-mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.22s;
+}
+
+.board-mode-tab:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.board-mode-tab.active {
+  background: var(--gradient);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+}
+
+.board-mode-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 학교 미등록 안내 */
+.board-school-notice {
+  margin-top: 12px;
+  padding: 12px 18px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 게시글 카드 학교 뱃지 */
+.post-school-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 10px;
 }
