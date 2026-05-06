@@ -21,6 +21,7 @@ import {
   Medal,
   Spade,
   Volleyball,
+  Hammer,
 } from 'lucide-react';
 import { doc, updateDoc, increment, getDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';

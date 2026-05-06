@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { isAdminUser } from '../lib/isAdmin';
 
 export interface User {
   id: string;
@@ -40,7 +41,6 @@ interface AuthState {
   logout: () => void;
 }
 
-const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com']; // 관리자 목록
 const defaultSettings = {
   notifications: {
     inApp: true,
@@ -76,7 +76,7 @@ export const useAuthStore = create<AuthState>((set) => {
       if (fbUser) {
         const userRef = doc(db, 'users', fbUser.uid);
         const userSnap = await getDoc(userRef);
-        const isAdmin = ADMIN_EMAILS.includes(fbUser.email || '');
+        const isAdmin = isAdminUser({ email: fbUser.email });
 
         if (userSnap.exists()) {
           const userData = withDefaults(userSnap.data() as User);

@@ -152,7 +152,6 @@ export default function MineSweeper({ addPoints }: Props) {
             return;
         }
 
-        const prevRevealed = countRevealed(currentBoard);
         const newBoard = revealCells(currentBoard, r, c, rows, cols);
         const nowRevealed = countRevealed(newBoard);
 

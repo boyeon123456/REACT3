@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Search, Check, ChevronDown } from 'lucide-react';
-import { auth, googleProvider } from '../firebase';
-import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '../firebase';
+import { getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useAuthStore } from '../store/authStore';
 import SchoolSearchModal from '../components/profile/SchoolSearchModal';
 import type { SchoolInfo } from '../api/neisApi';
@@ -19,8 +19,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [errorMSG, setErrorMSG] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
   // 학교 관련 상태
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [grade, setGrade] = useState('1');
@@ -97,14 +95,6 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err: any) {
-      setErrorMSG(`구글 로그인 실패: ${err.message || err.code}`);
-    }
-  };
-
   return (
     <div className="login-page">
       <div className="login-pattern-bg"></div>
@@ -147,7 +137,7 @@ export default function Login() {
                 <div className="input-wrapper">
                   <Lock size={18} className="input-icon" />
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type="password"
                     placeholder="••••••••"
                     required
                     value={password}
@@ -183,7 +173,7 @@ export default function Login() {
                 <label>비밀번호</label>
                 <div className="input-wrapper">
                   <Lock size={18} className="input-icon" />
-                  <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" required value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
+                  <input type="password" placeholder="••••••••" required value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
                 </div>
               </div>
               <button type="button" className="login-submit-btn" onClick={() => setSignupStep(2)} disabled={!email || !password || !name}>

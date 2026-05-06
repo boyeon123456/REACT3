@@ -5,15 +5,13 @@ import FloatingAction from '../components/ui/FloatingAction';
 import { db } from '../firebase';
 import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
+import { BOARD_TAG_COLORS } from '../constants/boardUi';
 import './Board.css';
 
 const categories = ['전체', '1학년', '2학년', '3학년', '학생회', '자유게시판', '공지사항'];
 const filters = ['최신순', '인기순', '댓글많은순'];
 
-const tagColors: Record<string, string> = {
-  '1학년': '#00B894', '2학년': '#6C5CE7', '3학년': '#E17055',
-  '학생회': '#0984E3', '자유게시판': '#FDCB6E', '공지사항': '#FF4757'
-};
+const tagColors = BOARD_TAG_COLORS;
 
 export default function Board() {
   const { user } = useAuthStore();

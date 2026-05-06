@@ -14,7 +14,8 @@ export default function OnboardingModal() {
   const [isStudent, setIsStudent] = useState<boolean | null>(null);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [grade, setGrade] = useState('1');
-  const [classNum, setClassNum] = useState('1');
+  /** 반 선택 UI 없음 — 기본 1반 (학년만 수집) */
+  const classNum = '1';
   const [showSchoolSearch, setShowSchoolSearch] = useState(false);
   const [saving, setSaving] = useState(false);
 

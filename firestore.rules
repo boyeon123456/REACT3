@@ -2,6 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Admin email list must stay in sync with src/lib/isAdmin.ts (ADMIN_EMAILS).
+
     // ──────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────
@@ -31,7 +33,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // 가입 시 create는 isNotBanned 없이 허용
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && request.auth.uid == userId && isNotBanned();
+      // 본인: 일반 프로필 수정. 타인: 관리자만 points / isBanned 변경 가능.
+      allow update: if (isAuthenticated() && request.auth.uid == userId && isNotBanned())
+        || (isAdmin() && request.auth.uid != userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'isBanned']));
       allow delete: if isAdmin();
 
       // 인벤토리 (서브컬렉션)
@@ -91,6 +96,11 @@ service cloud.firestore {
     match /shop_items/{itemId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
     }
   }
 }

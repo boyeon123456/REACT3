@@ -4,6 +4,7 @@ import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, C
 
 
 import { useAuthStore } from '../../store/authStore';
+import { isAdminUser } from '../../lib/isAdmin';
 import logoImage from '../../assets/670483720_1443067160639588_6486915911126418629_n.png';
 import './Sidebar.css';
 
@@ -52,10 +53,6 @@ const navGroups: NavGroup[] = [
   }
 ];
 
-
-const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
-
-
 export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMenuOpen?: boolean, closeMobileMenu?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuthStore();
@@ -85,7 +82,7 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
 
           const visibleItems = group.items.filter(item => {
             if (item.adminOnly) {
-              return user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+              return isAdminUser(user);
             }
             return true;
           });

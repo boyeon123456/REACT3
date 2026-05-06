@@ -6,6 +6,7 @@ import { db, storage } from '../firebase';
 import { doc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, increment, deleteDoc, getDoc } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { useAuthStore } from '../store/authStore';
+import { isAdminUser } from '../lib/isAdmin';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { createNotification } from '../hooks/useNotifications';
 import './PostDetail.css';
@@ -15,8 +16,7 @@ export default function PostDetail() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
-  const isAdmin = user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+  const isAdmin = isAdminUser(user);
 
   const [post, setPost] = useState<any>(null);
   const [commentsList, setCommentsList] = useState<any[]>([]);

@@ -14,6 +14,211 @@
   padding: 0 10px;
 }
 
+.admin-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-refresh-stats-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.admin-refresh-stats-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.admin-refresh-stats-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-stat-value-skeleton {
+  display: inline-block;
+  min-width: 80px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-hover) 25%,
+    var(--border-light) 50%,
+    var(--bg-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: adminShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes adminShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.admin-tab-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  padding-bottom: 4px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-light);
+  scrollbar-width: thin;
+}
+
+.admin-tab-strip::-webkit-scrollbar {
+  height: 6px;
+}
+
+.admin-tab-strip::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+.admin-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  padding: 10px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+}
+
+.admin-tab-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.admin-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: transparent;
+}
+
+.admin-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  animation: fadeIn 0.25s ease;
+}
+
+.admin-toast.success {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-light);
+}
+
+.admin-toast.error {
+  background: rgba(255, 71, 87, 0.12);
+  color: #ff4757;
+  border: 1px solid rgba(255, 71, 87, 0.35);
+}
+
+.admin-step2-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.admin-step2-card {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-step2-card h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.admin-step2-card p {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.admin-step2-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-step2-actions button {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+}
+
+.admin-step2-primary {
+  background: #ff4757;
+  color: white;
+}
+
+.admin-step2-secondary {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.admin-step2-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-light) !important;
+}
+
 .page-title {
   font-size: 28px;
   font-weight: 900;

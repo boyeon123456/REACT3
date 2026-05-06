@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Search, Bell, Menu, Settings, LogOut, Check, MessageSquare, Heart, Star, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { isAdminUser } from '../../lib/isAdmin';
 import { useNotifications, markAllNotificationsRead, markNotificationRead } from '../../hooks/useNotifications';
 import './Header.css';
 
@@ -10,8 +11,7 @@ export default function Header({ toggleMobileMenu }: { toggleMobileMenu?: () => 
   const { user, logout } = useAuthStore();
   const [showNotif, setShowNotif] = useState(false);
   
-  const ADMIN_EMAILS = ['admin_test_123@school.com', 'boyeon5600@gmail.com'];
-  const isAdmin = user?.role === 'admin' || (user?.email && ADMIN_EMAILS.includes(user.email));
+  const isAdmin = isAdminUser(user);
 
   const [showProfile, setShowProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
