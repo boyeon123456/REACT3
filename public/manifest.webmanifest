@@ -1,0 +1,57 @@
+{
+  "name": "Schooly",
+  "short_name": "Schooly",
+  "description": "Schooly school community app",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#00aeff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo1.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Board",
+      "short_name": "Board",
+      "url": "/board",
+      "icons": [
+        {
+          "src": "/logo1.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Meals",
+      "short_name": "Meals",
+      "url": "/meals",
+      "icons": [
+        {
+          "src": "/logo1.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Timetable",
+      "short_name": "Timetable",
+      "url": "/timetable",
+      "icons": [
+        {
+          "src": "/logo1.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
