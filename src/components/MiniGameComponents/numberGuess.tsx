@@ -1,81 +1,116 @@
-// src/components/games/NumberGuess.tsx
 import { useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Send } from 'lucide-react';
+import { formatPoints } from './arcadeShared';
+import { ArcadeButton, ArcadeGameShell, ArcadePanel, ArcadeResetButton, ArcadeResultCard } from './arcadeUi';
 
 interface Props {
-    addPoints: (p: number) => void;
+  addPoints: (p: number) => void;
+}
+
+const MAX_TRIES = 7;
+
+function createTarget() {
+  return Math.floor(Math.random() * 100) + 1;
 }
 
 export default function NumberGuess({ addPoints }: Props) {
-    const [target] = useState(() => Math.floor(Math.random() * 100) + 1);
-    const [guess, setGuess] = useState('');
-    const [tries, setTries] = useState(0);
-    const [hint, setHint] = useState('');
-    const [finished, setFinished] = useState(false);
-    const MAX_TRIES = 7;
+  const [target, setTarget] = useState(createTarget);
+  const [guess, setGuess] = useState('');
+  const [tries, setTries] = useState(0);
+  const [hint, setHint] = useState('1부터 100 사이의 숫자를 추리해 보세요.');
+  const [finished, setFinished] = useState(false);
+  const [won, setWon] = useState(false);
+  const [reward, setReward] = useState(0);
 
-    const submit = () => {
-        const n = parseInt(guess);
-        if (!n || n < 1 || n > 100) { setHint('1~100 사이 숫자를 입력하세요!'); return; }
+  const remaining = MAX_TRIES - tries;
 
-        const newTries = tries + 1;
-        setTries(newTries);
-        setGuess('');
+  const reset = () => {
+    setTarget(createTarget());
+    setGuess('');
+    setTries(0);
+    setHint('1부터 100 사이의 숫자를 추리해 보세요.');
+    setFinished(false);
+    setWon(false);
+    setReward(0);
+  };
 
-        if (n === target) {
-            const earned = Math.max(500 - (newTries - 1) * 70, 10);
-            addPoints(earned);
-            setHint(`🎉 정답! ${newTries}번 만에 맞췄어요!`);
-            setFinished(true);
-        } else if (newTries >= MAX_TRIES) {
-            setHint(`😢 실패! 정답은 ${target}이었어요.`);
-            setFinished(true);
-        } else {
-            const remaining = MAX_TRIES - newTries;
-            setHint(n < target ? `📈 더 큰 숫자예요! (남은 기회: ${remaining}번)` : `📉 더 작은 숫자예요! (남은 기회: ${remaining}번)`);
-        }
-    };
+  const submit = () => {
+    if (finished) return;
 
-    const reset = () => window.location.reload(); // 새 target 위해 리셋
+    const value = Number.parseInt(guess, 10);
+    if (!Number.isFinite(value) || value < 1 || value > 100) {
+      setHint('1부터 100 사이 숫자만 입력할 수 있어요.');
+      return;
+    }
 
-    return (
-        <div className="game-play-area">
-            <div className="game-play-header"><h3>🔢 숫자 맞추기</h3></div>
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                1~100 사이 숫자를 맞춰보세요! ({MAX_TRIES}번 기회)
-            </p>
-            <p style={{ textAlign: 'center', marginBottom: 16 }}>
-                시도: <strong>{tries}</strong> / {MAX_TRIES}
-            </p>
+    const nextTries = tries + 1;
+    setTries(nextTries);
+    setGuess('');
 
-            {!finished && (
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-                    <input
-                        type="number"
-                        className="bet-input"
-                        placeholder="숫자 입력"
-                        value={guess}
-                        min={1} max={100}
-                        onChange={e => setGuess(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && submit()}
-                        style={{ width: 120 }}
-                    />
-                    <button className="game-start-btn" style={{ margin: 0 }} onClick={submit}>제출</button>
-                </div>
-            )}
+    if (value === target) {
+      const earned = Math.max(620 - (nextTries - 1) * 85, 80);
+      addPoints(earned);
+      setReward(earned);
+      setWon(true);
+      setFinished(true);
+      setHint(`${nextTries}번 만에 정답을 맞혔어요.`);
+      return;
+    }
 
-            {hint && (
-                <p style={{ textAlign: 'center', fontSize: 18, fontWeight: 600, marginBottom: 12 }}>{hint}</p>
-            )}
+    if (nextTries >= MAX_TRIES) {
+      setWon(false);
+      setFinished(true);
+      setHint(`실패. 정답은 ${target}였습니다.`);
+      return;
+    }
 
-            {finished && (
-                <div className="fortune-result">
-                    {tries <= MAX_TRIES && hint.includes('정답') && (
-                        <p className="fortune-points">+{Math.max(500 - (tries - 1) * 70, 10)}P 획득!</p>
-                    )}
-                    <button className="game-retry-btn" onClick={reset}><RotateCcw size={16} /> 다시하기</button>
-                </div>
-            )}
-        </div>
-    );
+    setHint(value < target ? `더 큰 숫자입니다. 남은 기회 ${MAX_TRIES - nextTries}번.` : `더 작은 숫자입니다. 남은 기회 ${MAX_TRIES - nextTries}번.`);
+  };
+
+  return (
+    <ArcadeGameShell
+      title="숫자 맞히기"
+      subtitle="힌트를 보고 정답을 빠르게 좁히는 추리 게임입니다."
+      stats={[
+        { label: '시도', value: `${tries}/${MAX_TRIES}` },
+        { label: '남은 기회', value: remaining, tone: remaining <= 2 ? 'warning' : 'neutral' },
+        { label: '최대 보상', value: formatPoints(620), tone: 'positive' },
+      ]}
+    >
+      <ArcadePanel>
+        <p className="arcade-modern-helper">{hint}</p>
+
+        {!finished && (
+          <div className="arcade-modern-input-row">
+            <input
+              type="number"
+              className="arcade-modern-input"
+              placeholder="숫자 입력"
+              value={guess}
+              min={1}
+              max={100}
+              onChange={(event) => setGuess(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') submit();
+              }}
+            />
+            <ArcadeButton onClick={submit} disabled={!guess}>
+              <Send size={16} />
+              제출
+            </ArcadeButton>
+          </div>
+        )}
+
+        {finished && <ArcadeResetButton onClick={reset} />}
+      </ArcadePanel>
+
+      {finished && (
+        <ArcadeResultCard
+          title={won ? '정답 성공' : '아쉬운 실패'}
+          delta={won ? reward : 0}
+          message={won ? '빠르게 맞힐수록 보상이 크게 올라갑니다.' : '다음 판에서는 힌트를 더 좁혀서 노려보세요.'}
+        />
+      )}
+    </ArcadeGameShell>
+  );
 }

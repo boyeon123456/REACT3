@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Sparkles } from 'lucide-react';
 
 interface Props {
   addPoints: (p: number) => void;
@@ -76,10 +76,25 @@ export default function Roulette({ addPoints }: Props) {
   return (
     <div className="game-play-area roulette-game">
       <div className="game-play-header">
-        <h3>돌림판</h3>
+        <h3>룰렛</h3>
       </div>
 
-      <p className="roulette-subtitle">구간별 포인트를 확인하고 화살표가 멈추는 위치를 노려보세요.</p>
+      <p className="roulette-subtitle">가볍게 한 판 돌리고 랜덤 포인트를 받아보세요. 당첨 구간은 확률이 다르지만, 결과는 끝까지 긴장감 있게 보여드려요.</p>
+
+      <div className="roulette-status">
+        <div className="roulette-status-card">
+          <strong>6칸</strong>
+          <span>보상 구간</span>
+        </div>
+        <div className="roulette-status-card">
+          <strong>최대 1,000P</strong>
+          <span>한 번에 획득</span>
+        </div>
+        <div className="roulette-status-card">
+          <strong>{spinning ? '회전 중' : '대기 중'}</strong>
+          <span>현재 상태</span>
+        </div>
+      </div>
 
       <div className="roulette-board">
         <div className="roulette-pointer" aria-hidden="true">
@@ -87,10 +102,7 @@ export default function Roulette({ addPoints }: Props) {
         </div>
 
         <div className="roulette-wheel-shell">
-          <div
-            className={`roulette-wheel ${spinning ? 'is-spinning' : ''}`}
-            style={{ transform: `rotate(${angle}deg)` }}
-          >
+          <div className={`roulette-wheel ${spinning ? 'is-spinning' : ''}`} style={{ transform: `rotate(${angle}deg)` }}>
             <div className="roulette-wheel-face" style={{ background: wheelBackground }}>
               <div className="roulette-wheel-lines" aria-hidden="true" />
 
@@ -101,11 +113,7 @@ export default function Roulette({ addPoints }: Props) {
                 const top = 50 + Math.sin(radian) * 36;
 
                 return (
-                  <div
-                    key={prize.label}
-                    className="roulette-segment-label"
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                  >
+                  <div key={prize.label} className="roulette-segment-label" style={{ left: `${left}%`, top: `${top}%` }}>
                     <span>{prize.label}</span>
                   </div>
                 );
@@ -122,10 +130,7 @@ export default function Roulette({ addPoints }: Props) {
 
       <div className="roulette-legend" aria-label="룰렛 구간 목록">
         {PRIZES.map((prize) => (
-          <div
-            key={prize.label}
-            className={`roulette-legend-item ${resultPrize?.label === prize.label ? 'is-hit' : ''}`}
-          >
+          <div key={prize.label} className={`roulette-legend-item ${resultPrize?.label === prize.label ? 'is-hit' : ''}`}>
             <span className="roulette-legend-dot" style={{ backgroundColor: prize.color }} />
             <span>{prize.label}</span>
           </div>
@@ -133,15 +138,20 @@ export default function Roulette({ addPoints }: Props) {
       </div>
 
       <button className="game-start-btn roulette-start-btn" onClick={spin} disabled={spinning}>
-        {spinning ? '돌리는 중...' : '돌리기'}
+        {spinning ? '룰렛이 돌아가는 중...' : '룰렛 돌리기'}
       </button>
 
       {resultPrize && (
-        <div className="fortune-result roulette-result">
-          <p className="fortune-text">화살표가 {resultPrize.label} 구간에 멈췄어요.</p>
-          <p className="fortune-points" style={{ color: resultPrize.color }}>
+        <div className="game-result-card">
+          <div className="result-badge">
+            <Sparkles size={16} />
+            {resultPrize.label} 구간 당첨
+          </div>
+          <p className="fortune-text">포인터가 {resultPrize.label} 구간에 멈췄어요. 귀여운 한 판이지만 보상은 꽤 묵직하죠.</p>
+          <p className="result-amount is-positive" style={{ color: resultPrize.color }}>
             +{resultPrize.value}P
           </p>
+          <p className="result-subcopy">다시 돌리면 새로운 결과로 한 번 더 행운을 시험할 수 있어요.</p>
           <button className="game-retry-btn" onClick={reset}>
             <RotateCcw size={16} /> 다시 돌리기
           </button>

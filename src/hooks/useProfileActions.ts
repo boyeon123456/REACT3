@@ -1,29 +1,37 @@
 import { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from '../firebase';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import type { User } from '../store/authStore';
-import type { ToastState, InventoryItem } from '../types/profile';
+import { defaultSettings } from '../types/profile';
+import type { AppearanceSettings, InventoryItem, PrivacySettings, ToastState } from '../types/profile';
 
 const PROFILE_PHOTO_MAX_BYTES = 600 * 1024;
 const PROFILE_PHOTO_DIMENSIONS = [900, 720, 560, 420];
 const PROFILE_PHOTO_QUALITIES = [0.86, 0.78, 0.7, 0.62, 0.54, 0.46, 0.38];
+const HANDLE_PATTERN = /^[a-z0-9_]{3,20}$/;
 
 function getErrorCode(error: unknown) {
   if (typeof error === 'object' && error !== null && 'code' in error) {
     const code = (error as { code?: unknown }).code;
     return typeof code === 'string' ? code : '';
   }
+
   return '';
 }
 
 function getProfileSaveErrorMessage(error: unknown) {
   const code = getErrorCode(error);
 
+  if (code === 'permission-denied') {
+    return '프로필 저장 권한이 거부됐어요. 잠시 후 다시 시도해 주세요.';
+  }
+
   if (code === 'storage/unauthorized') {
-    return '프로필 사진 업로드 권한이 거부됐어요. Storage rules 배포나 버킷 설정을 확인해 주세요.';
+    return '프로필 사진 업로드 권한이 거부되었어요. Storage rules 배포와 버킷 설정을 확인해 주세요.';
   }
 
   if (code === 'storage/retry-limit-exceeded' || code === 'storage/canceled') {
@@ -37,6 +45,10 @@ function getProfileSaveErrorMessage(error: unknown) {
   return '프로필 저장에 실패했어요. 다시 시도해 주세요.';
 }
 
+function normalizeHandle(value: string) {
+  return value.trim().toLowerCase().replace(/^@+/, '');
+}
+
 function loadImageFromFile(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -46,10 +58,12 @@ function loadImageFromFile(file: File) {
       URL.revokeObjectURL(objectUrl);
       resolve(image);
     };
+
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       reject(new Error('이미지를 불러오지 못했어요.'));
     };
+
     image.src = objectUrl;
   });
 }
@@ -114,7 +128,7 @@ async function prepareProfilePhoto(file: File) {
   }
 
   if (!bestBlob || bestBlob.size > PROFILE_PHOTO_MAX_BYTES) {
-    throw new Error('사진을 앱 프로필에 저장할 만큼 작게 압축하지 못했어요. 더 작은 이미지를 선택해 주세요.');
+    throw new Error('사진을 프로필에 저장할 만큼 작게 압축하지 못했어요. 더 작은 이미지를 선택해 주세요.');
   }
 
   return new File([bestBlob], 'profile-photo.jpg', { type: 'image/jpeg' });
@@ -124,12 +138,13 @@ export function useProfileActions() {
   const user = useAuthStore((state) => state.user);
   const patchUser = useAuthStore((state) => state.patchUser);
   const logout = useAuthStore((state) => state.logout);
+  const applyAppearance = useThemeStore((state) => state.applyAppearance);
 
   const [toast, setToast] = useState<ToastState>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [savingSettingKey, setSavingSettingKey] = useState<'inApp' | 'email' | null>(null);
+  const [savingSettingKey, setSavingSettingKey] = useState<'inApp' | 'email' | 'appearance' | 'privacy' | null>(null);
 
-  const showToast = (type: 'success' | 'error', message: string) => {
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 2600);
   };
@@ -142,7 +157,11 @@ export function useProfileActions() {
     isStudent: boolean,
     schoolName: string,
     schoolCode: string,
-    officeCode: string
+    officeCode: string,
+    bio: string,
+    statusMessage: string,
+    featuredBadgeId: string,
+    handle?: string
   ) => {
     if (!user || !auth.currentUser) return false;
 
@@ -150,6 +169,22 @@ export function useProfileActions() {
     if (trimmedName.length < 2) {
       showToast('error', '닉네임은 2자 이상으로 입력해 주세요.');
       return false;
+    }
+
+    const normalizedHandle = normalizeHandle(handle || '');
+    if (normalizedHandle && !HANDLE_PATTERN.test(normalizedHandle)) {
+      showToast('error', '아이디는 영문 소문자, 숫자, 밑줄만 사용해 3~20자로 입력해 주세요.');
+      return false;
+    }
+
+    if (normalizedHandle && normalizedHandle !== (user.handle || '')) {
+      const handleQuery = query(collection(db, 'users'), where('handle', '==', normalizedHandle));
+      const handleSnap = await getDocs(handleQuery);
+      const duplicated = handleSnap.docs.some((item) => item.id !== user.id);
+      if (duplicated) {
+        showToast('error', '이미 사용 중인 아이디예요.');
+        return false;
+      }
     }
 
     setIsSavingProfile(true);
@@ -179,24 +214,45 @@ export function useProfileActions() {
 
       const updateData = {
         name: trimmedName,
+        handle: normalizedHandle,
+        profileStyle: {},
+        settings: {
+          ...defaultSettings,
+          ...user.settings,
+          notifications: {
+            ...defaultSettings.notifications,
+            ...user.settings?.notifications,
+          },
+          appearance: {
+            ...defaultSettings.appearance,
+            ...user.settings?.appearance,
+          },
+          privacy: {
+            ...defaultSettings.privacy,
+            ...user.settings?.privacy,
+          },
+        },
+        equipped_items: user.equipped_items || {},
         grade: editGrade,
         class: editClass,
         isStudent,
         schoolName,
         schoolCode,
         officeCode,
+        bio: bio.trim(),
+        statusMessage: statusMessage.trim(),
+        featuredBadgeId: featuredBadgeId.trim(),
         ...(photoURL ? { photoURL } : {}),
       };
 
       await updateDoc(doc(db, 'users', user.id), updateData);
-
       patchUser(updateData);
 
       showToast(
         'success',
         usedFirestorePhotoFallback
-          ? 'Storage가 막혀서 사진을 앱 프로필에 직접 저장했어요.'
-          : '프로필이 깔끔하게 업데이트됐어요.'
+          ? 'Storage가 막혀 있어 사진을 프로필 문서에 직접 저장했어요.'
+          : '프로필이 깔끔하게 업데이트되었어요.'
       );
       return true;
     } catch (error) {
@@ -211,15 +267,25 @@ export function useProfileActions() {
   const handleToggleNotification = async (
     key: 'inApp' | 'email',
     currentSettings: User['settings'],
-    defaultSettings: { notifications: { inApp: boolean; email: boolean; } }
+    fallbackSettings: typeof defaultSettings
   ) => {
     if (!user) return;
 
     const nextSettings = {
+      ...defaultSettings,
+      ...currentSettings,
       notifications: {
         inApp: currentSettings?.notifications?.inApp ?? true,
         email: currentSettings?.notifications?.email ?? false,
-        [key]: !(currentSettings?.notifications?.[key] ?? defaultSettings.notifications[key]),
+        [key]: !(currentSettings?.notifications?.[key] ?? fallbackSettings.notifications[key]),
+      },
+      appearance: {
+        ...defaultSettings.appearance,
+        ...currentSettings?.appearance,
+      },
+      privacy: {
+        ...defaultSettings.privacy,
+        ...currentSettings?.privacy,
       },
     };
 
@@ -231,6 +297,88 @@ export function useProfileActions() {
     } catch (error) {
       console.error('Error updating settings:', error);
       showToast('error', '설정 저장에 실패했어요.');
+    } finally {
+      setSavingSettingKey(null);
+    }
+  };
+
+  const handleUpdateAppearance = async (updates: Partial<AppearanceSettings>) => {
+    if (!user) return;
+
+    const currentSettings = user.settings;
+    const nextAppearance = {
+      ...defaultSettings.appearance,
+      ...currentSettings?.appearance,
+      ...updates,
+    };
+    const nextSettings = {
+      ...defaultSettings,
+      ...currentSettings,
+      notifications: {
+        ...defaultSettings.notifications,
+        ...currentSettings?.notifications,
+      },
+      appearance: nextAppearance,
+      privacy: {
+        ...defaultSettings.privacy,
+        ...currentSettings?.privacy,
+      },
+    };
+
+    applyAppearance(nextAppearance);
+    patchUser({ settings: nextSettings });
+    setSavingSettingKey('appearance');
+
+    try {
+      await updateDoc(doc(db, 'users', user.id), { settings: nextSettings });
+      showToast('success', '취향 설정을 저장했어요.');
+    } catch (error) {
+      console.error('Error updating appearance settings:', error);
+      const previousAppearance = {
+        ...defaultSettings.appearance,
+        ...currentSettings?.appearance,
+      };
+      applyAppearance(previousAppearance);
+      patchUser({ settings: currentSettings });
+      showToast('error', '취향 설정 저장에 실패했어요.');
+    } finally {
+      setSavingSettingKey(null);
+    }
+  };
+
+  const handleUpdatePrivacy = async (updates: Partial<PrivacySettings>) => {
+    if (!user) return;
+
+    const currentSettings = user.settings;
+    const nextPrivacy = {
+      ...defaultSettings.privacy,
+      ...currentSettings?.privacy,
+      ...updates,
+    };
+    const nextSettings = {
+      ...defaultSettings,
+      ...currentSettings,
+      notifications: {
+        ...defaultSettings.notifications,
+        ...currentSettings?.notifications,
+      },
+      appearance: {
+        ...defaultSettings.appearance,
+        ...currentSettings?.appearance,
+      },
+      privacy: nextPrivacy,
+    };
+
+    patchUser({ settings: nextSettings });
+    setSavingSettingKey('privacy');
+
+    try {
+      await updateDoc(doc(db, 'users', user.id), { settings: nextSettings });
+      showToast('success', '개인정보 설정을 저장했어요.');
+    } catch (error) {
+      console.error('Error updating privacy settings:', error);
+      patchUser({ settings: currentSettings });
+      showToast('error', '개인정보 설정 저장에 실패했어요.');
     } finally {
       setSavingSettingKey(null);
     }
@@ -272,6 +420,8 @@ export function useProfileActions() {
     savingSettingKey,
     handleSaveProfile,
     handleToggleNotification,
+    handleUpdateAppearance,
+    handleUpdatePrivacy,
     handleEquip,
     handleLogout,
   };

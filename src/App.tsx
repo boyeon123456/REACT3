@@ -1,84 +1,111 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import './App.css';
+import AdminRoute from './components/AdminRoute';
 import AppLayout from './components/layout/AppLayout';
 import PrivateRoute from './components/PrivateRoute';
-import Home from './pages/Home';
-import Board from './pages/Board';
-import PostDetail from './pages/PostDetail';
-import WritePost from './pages/WritePost';
-import MiniGame from './pages/MiniGame';
-import MyPage from './pages/MyPage';
-import Admin from './pages/Admin';
-import AdminRoute from './components/AdminRoute';
-import MealPage from './pages/MealPage';
-import TimetablePage from './pages/TimetablePage';
-import Shop from './pages/Shop';
-import Login from './pages/Login';
-
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
-import { useEffect } from 'react';
-import './App.css';
+
+const Admin = lazy(() => import('./pages/Admin'));
+const Board = lazy(() => import('./pages/Board'));
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const MealPage = lazy(() => import('./pages/MealPage'));
+const MiniGame = lazy(() => import('./pages/MiniGame'));
+const MyPage = lazy(() => import('./pages/MyPage'));
+const MyPageActivity = lazy(() => import('./pages/MyPageActivity'));
+const MyPageInventory = lazy(() => import('./pages/MyPageInventory'));
+const MyPageSaved = lazy(() => import('./pages/MyPageSaved'));
+const MyProfileEdit = lazy(() => import('./pages/MyProfileEdit'));
+const PostDetail = lazy(() => import('./pages/PostDetail'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const Shop = lazy(() => import('./pages/Shop'));
+const TimetablePage = lazy(() => import('./pages/TimetablePage'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const WritePost = lazy(() => import('./pages/WritePost'));
+
+function AppLoading() {
+  return (
+    <div className="app-loading-screen">
+      <div className="app-loading-spinner" />
+      <p>Loading...</p>
+    </div>
+  );
+}
 
 function App() {
-  const { loading } = useAuthStore();
+  const { loading, user } = useAuthStore();
   const theme = useThemeStore((state) => state.theme);
+  const accent = useThemeStore((state) => state.accent);
+  const density = useThemeStore((state) => state.density);
+  const reducedMotion = useThemeStore((state) => state.reducedMotion);
+  const applyAppearance = useThemeStore((state) => state.applyAppearance);
 
-  // 전역 테마 반영
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    if (user?.settings?.appearance) {
+      applyAppearance(user.settings.appearance);
+    }
+  }, [applyAppearance, user?.settings?.appearance]);
 
-  // Firebase 인증 상태 확인 중 — 깜빡임 방지
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    root.setAttribute('data-accent', accent);
+    root.setAttribute('data-density', density);
+    root.setAttribute('data-reduced-motion', String(reducedMotion));
+  }, [accent, density, reducedMotion, theme]);
+
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: 'var(--bg-primary, #0f1117)',
-        flexDirection: 'column', gap: '16px'
-      }}>
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%',
-          border: '3px solid #6c63ff', borderTopColor: 'transparent',
-          animation: 'spin 0.8s linear infinite'
-        }} />
-        <p style={{ color: '#888', fontSize: '14px' }}>로딩 중...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <AppLoading />;
   }
 
   return (
     <Router>
-      <Routes>
-        {/* 로그인 페이지 — 이미 로그인된 경우 홈으로 */}
-        <Route path="/login" element={<Login />} />
+      <Suspense fallback={<AppLoading />}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        {/* 보호된 페이지들 — 로그인 필요 */}
-        <Route path="/" element={
-          <PrivateRoute>
-            <AppLayout />
-          </PrivateRoute>
-        }>
-          <Route index element={<Home />} />
-          <Route path="board" element={<Board />} />
-          <Route path="post/:id" element={<PostDetail />} />
-          <Route path="write" element={<WritePost />} />
-          <Route path="edit/:id" element={<WritePost />} />
-          <Route path="games" element={<MiniGame />} />
-          <Route path="meals" element={<MealPage />} />
-          <Route path="timetable" element={<TimetablePage />} />
-          <Route path="shop" element={<Shop />} />
-          <Route path="mypage" element={<MyPage />} />
-
-
-          <Route path="admin" element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          } />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <AppLayout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Home />} />
+            <Route path="board" element={<Board />} />
+            <Route path="post/:id" element={<PostDetail />} />
+            <Route path="write" element={<WritePost />} />
+            <Route path="edit/:id" element={<WritePost />} />
+            <Route path="games" element={<MiniGame />} />
+            <Route path="meals" element={<MealPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="timetable" element={<TimetablePage />} />
+            <Route path="shop" element={<Shop />} />
+            <Route path="mypage" element={<MyPage />} />
+            <Route path="mypage/activity" element={<MyPageActivity />} />
+            <Route path="mypage/saved" element={<MyPageSaved />} />
+            <Route path="mypage/inventory" element={<MyPageInventory />} />
+            <Route path="mypage/edit-profile" element={<MyProfileEdit />} />
+            <Route path="mypage/settings" element={<Navigate to="/mypage/edit-profile" replace />} />
+            <Route path="profile/:userId" element={<UserProfile />} />
+            <Route path="profile/:userId/activity" element={<UserProfile tab="activity" />} />
+            <Route path="settings" element={<Settings />} />
+            <Route
+              path="admin"
+              element={
+                <AdminRoute>
+                  <Admin />
+                </AdminRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

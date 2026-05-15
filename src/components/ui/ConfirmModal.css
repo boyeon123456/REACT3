@@ -14,7 +14,7 @@
 }
 
 .confirm-modal-v3 {
-  background-color: #ffffff;
+  background-color: var(--bg-card);
   width: 90%;
   max-width: 400px;
   border-radius: 28px;

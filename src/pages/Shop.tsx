@@ -22,6 +22,13 @@ export default function Shop() {
     const [inventory, setInventory] = useState<string[]>([]);
 
     useEffect(() => {
+        if (!user) {
+            setItems([]);
+            setInventory([]);
+            setLoading(false);
+            return undefined;
+        }
+
         const q = query(collection(db, 'shop_items'), orderBy('price', 'asc'));
         const unsub = onSnapshot(q, (snap) => {
             setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopItem)));
@@ -32,12 +39,9 @@ export default function Shop() {
         });
 
         // 유저 인벤토리 구독 (이미 구매한 상품 확인용)
-        let unsubInv = () => { };
-        if (user) {
-            unsubInv = onSnapshot(collection(db, 'users', user.id, 'inventory'), (snap) => {
-                setInventory(snap.docs.map(d => d.id));
-            });
-        }
+        const unsubInv = onSnapshot(collection(db, 'users', user.id, 'inventory'), (snap) => {
+            setInventory(snap.docs.map(d => d.id));
+        });
 
         return () => {
             unsub();

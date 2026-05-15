@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
+import type { AdminReportRow } from '../types/admin';
 
 export function useAdminReports() {
-  const [reports, setReports] = useState<Record<string, unknown>[]>([]);
+  const [reports, setReports] = useState<AdminReportRow[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [reportsError, setReportsError] = useState<string | null>(null);
 
@@ -12,16 +13,22 @@ export function useAdminReports() {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setReports(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setReports(
+          snap.docs.map((entry) => ({
+            id: entry.id,
+            ...(entry.data() as Omit<AdminReportRow, 'id'>),
+          }))
+        );
         setReportsLoading(false);
         setReportsError(null);
       },
       (err) => {
         console.error('Reports sync error:', err);
-        setReportsError('신고 내역을 불러오지 못했습니다. 권한을 확인하세요.');
+        setReportsError('신고 내역을 불러오지 못했습니다. 권한 설정을 확인해 주세요.');
         setReportsLoading(false);
       }
     );
+
     return () => unsub();
   }, []);
 

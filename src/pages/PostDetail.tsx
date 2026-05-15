@@ -1,207 +1,489 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, MoreVertical, Heart, Share2, AlertOctagon, ThumbsUp, Send, Eye, Trash2, Edit2, Shield } from 'lucide-react';
-
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+  AlertOctagon,
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  Edit2,
+  Eye,
+  Heart,
+  MessageCircle,
+  MoreVertical,
+  Send,
+  Share2,
+  Shield,
+  ThumbsUp,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { db, storage } from '../firebase';
-import { doc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, increment, deleteDoc, getDoc } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { useAuthStore } from '../store/authStore';
-import { isAdminUser } from '../lib/isAdmin';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  increment,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import { deleteObject, ref } from 'firebase/storage';
+import StorageImage from '../components/media/StorageImage';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { db, storage } from '../firebase';
 import { createNotification } from '../hooks/useNotifications';
+import { isAdminUser } from '../lib/isAdmin';
+import { getVisibleSchoolName } from '../lib/schoolPrivacy';
+import { resolveStorageSrc } from '../lib/storageAsset';
+import { useAuthStore, type User } from '../store/authStore';
+import { formatBoardDate, normalizePost, type NormalizedPost } from '../constants/boardUi';
 import './PostDetail.css';
 
+type CommentRow = {
+  id: string;
+  content?: string;
+  author?: string;
+  author_id?: string;
+  authorDisplayName?: string;
+  authorEquipped?: Record<string, string>;
+  replyTo_id?: string | null;
+  likes?: number;
+  created_at?: number;
+};
+
+type ShopItemRow = {
+  id: string;
+  style?: string;
+};
+type AuthorProfile = Pick<User, 'id' | 'schoolCode' | 'schoolName' | 'settings'>;
+
+type DetailToast = {
+  type: 'success' | 'error';
+  message: string;
+};
+
+const VIEWED_POSTS_SESSION_KEY = 'viewed-posts';
+
 export default function PostDetail() {
-  const { id } = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-
   const isAdmin = isAdminUser(user);
 
-  const [post, setPost] = useState<any>(null);
-  const [commentsList, setCommentsList] = useState<any[]>([]);
+  const [post, setPost] = useState<NormalizedPost | null>(null);
+  const [commentsList, setCommentsList] = useState<CommentRow[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<NormalizedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [replyTo, setReplyTo] = useState<{ id: string, author: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; author: string } | null>(null);
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMore, setShowMore] = useState(false);
-  const [authorInfo, setAuthorInfo] = useState<any>(null);
-  const [shopItemsMap, setShopItemsMap] = useState<Record<string, any>>({});
+  const [shopItemsMap, setShopItemsMap] = useState<Record<string, ShopItemRow>>({});
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportMessage, setReportMessage] = useState<DetailToast | null>(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [detailToast, setDetailToast] = useState<DetailToast | null>(null);
+  const [isPostOwner, setIsPostOwner] = useState(false);
+  const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null);
 
+  const showDetailToast = (type: DetailToast['type'], message: string) => {
+    setDetailToast({ type, message });
+    window.setTimeout(() => setDetailToast(null), 2200);
+  };
 
   useEffect(() => {
     if (!id) return;
-    
-    // Increment view
+
     const postRef = doc(db, 'posts', id);
-    updateDoc(postRef, { views: increment(1) }).catch(console.error);
 
-    // Subscribe to post changes
-    const unsubPost = onSnapshot(postRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        const pData = { id: docSnap.id, ...(docSnap.data() as any) };
-        setPost(pData);
-        setLoading(false);
+    const markViewed = () => {
+      if (typeof window === 'undefined') return;
 
-        // 작성자 정보 가져오기 (배지, 색상)
-        if (pData.author_id) {
-            const authorSnap = await getDoc(doc(db, 'users', pData.author_id));
+      const viewedRaw = window.sessionStorage.getItem(VIEWED_POSTS_SESSION_KEY);
+      const viewedPosts = viewedRaw ? (JSON.parse(viewedRaw) as string[]) : [];
+      if (viewedPosts.includes(id)) return;
 
-            if (authorSnap.exists()) setAuthorInfo(authorSnap.data());
+      window.sessionStorage.setItem(VIEWED_POSTS_SESSION_KEY, JSON.stringify([...viewedPosts, id]));
+      updateDoc(postRef, { views: increment(1) }).catch((error) => {
+        console.error(error);
+        const rollback = viewedPosts.filter((postId) => postId !== id);
+        window.sessionStorage.setItem(VIEWED_POSTS_SESSION_KEY, JSON.stringify(rollback));
+      });
+    };
+
+    markViewed();
+
+    const unsubPost = onSnapshot(
+      postRef,
+      (docSnap) => {
+        if (!docSnap.exists()) {
+          alert('존재하지 않는 게시글입니다.');
+          navigate('/board');
+          return;
         }
-      } else {
-        alert('존재하지 않는 게시글입니다.');
-        navigate('/board');
+        setPost(normalizePost(docSnap.id, docSnap.data()));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Post subscription error:', error);
+        setLoading(false);
       }
-    });
+    );
 
-
-    // Subscribe to comments
     const qComments = query(collection(db, 'posts', id, 'comments'), orderBy('created_at', 'asc'));
     const unsubComments = onSnapshot(qComments, (snap) => {
-      setCommentsList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setCommentsList(snap.docs.map((entry) => ({ id: entry.id, ...entry.data() } as CommentRow)));
     });
 
-    // 상점 아이템 정보 로드 (스타일 참조용)
-    const unsubItems = onSnapshot(collection(db, 'shop_items'), (snap) => {
-        const itemMap: any = {};
-        snap.forEach(d => { itemMap[d.id] = { id: d.id, ...d.data() }; });
-        setShopItemsMap(itemMap);
-    });
+    let unsubItems: () => void = () => {};
+    if (user) {
+      unsubItems = onSnapshot(collection(db, 'shop_items'), (snap) => {
+        const next: Record<string, ShopItemRow> = {};
+        snap.forEach((entry) => {
+          next[entry.id] = { id: entry.id, ...(entry.data() as Omit<ShopItemRow, 'id'>) };
+        });
+        setShopItemsMap(next);
+      });
+    } else {
+      setShopItemsMap({});
+    }
 
     return () => {
       unsubPost();
       unsubComments();
       unsubItems();
     };
+  }, [id, navigate, user]);
 
-  }, [id]);
+  useEffect(() => {
+    if (!id || !user?.id) {
+      setLiked(false);
+      setBookmarked(false);
+      return;
+    }
+
+    const unsubLike = onSnapshot(doc(db, 'posts', id, 'likes', user.id), (snap) => setLiked(snap.exists()));
+    const unsubBookmark = onSnapshot(doc(db, 'users', user.id, 'bookmarks', id), (snap) => setBookmarked(snap.exists()));
+
+    return () => {
+      unsubLike();
+      unsubBookmark();
+    };
+  }, [id, user?.id]);
+
+  useEffect(() => {
+    if (!post) return;
+
+    const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'), limit(12));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const next = snap.docs
+        .map((entry) => normalizePost(entry.id, entry.data()))
+        .filter((item) => item.id !== post.id && item.boardKey === post.boardKey)
+        .slice(0, 3);
+      setRelatedPosts(next);
+    });
+
+    return () => unsubscribe();
+  }, [post]);
+
+  useEffect(() => {
+    if (!post?.authorId) {
+      setAuthorProfile(null);
+      return;
+    }
+
+    let active = true;
+    getDoc(doc(db, 'users', post.authorId))
+      .then((snap) => {
+        if (!active) return;
+        setAuthorProfile(snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<User, 'id'>) } as AuthorProfile) : null);
+      })
+      .catch((error) => {
+        console.error('Author profile load error:', error);
+        if (active) setAuthorProfile(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [post?.authorId]);
+
+  const rootComments = useMemo(() => commentsList.filter((comment) => !comment.replyTo_id), [commentsList]);
+  const repliesByParent = useMemo(
+    () =>
+      commentsList.reduce<Record<string, CommentRow[]>>((acc, comment) => {
+        if (comment.replyTo_id) {
+          acc[comment.replyTo_id] = [...(acc[comment.replyTo_id] || []), comment];
+        }
+        return acc;
+      }, {}),
+    [commentsList]
+  );
+
+  useEffect(() => {
+    if (!id || !user || !post) {
+      setIsPostOwner(false);
+      return;
+    }
+
+    if (isAdmin || post.authorId === user.id) {
+      setIsPostOwner(true);
+      return;
+    }
+
+    let active = true;
+    getDoc(doc(db, 'post_owners', id))
+      .then((snap) => {
+        if (!active) return;
+        setIsPostOwner(snap.exists() && snap.data().ownerId === user.id);
+      })
+      .catch(() => {
+        if (active) setIsPostOwner(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id, isAdmin, post, user]);
 
   const handleLike = async () => {
-    if (!user) return alert('로그인해주세요.');
-    if (liked) return;
+    if (!user || !id) {
+      showDetailToast('error', '\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD574\uC694.');
+      return;
+    }
+
+    let nextLiked = false;
+
     try {
-      setLiked(true);
-      await updateDoc(doc(db, 'posts', id!), { likes: increment(1) });
-      // 게시글 작성자에게 좋아요 알림 (본인 글 제외)
-      if (post && post.author_id && post.author_id !== user.id) {
+      await runTransaction(db, async (transaction) => {
+        const likeRef = doc(db, 'posts', id, 'likes', user.id);
+        const postRef = doc(db, 'posts', id);
+        const likeSnap = await transaction.get(likeRef);
+        const postSnap = await transaction.get(postRef);
+        const currentLikes = Number(postSnap.data()?.likes || 0);
+
+        if (likeSnap.exists()) {
+          transaction.delete(likeRef);
+          transaction.update(postRef, { likes: Math.max(0, currentLikes - 1) });
+          nextLiked = false;
+          return;
+        }
+
+        transaction.set(likeRef, {
+          userId: user.id,
+          createdAt: Date.now(),
+        });
+        transaction.update(postRef, { likes: currentLikes + 1 });
+        nextLiked = true;
+      });
+      setLiked(nextLiked);
+
+      if (nextLiked && post?.authorId && post.authorId !== user.id) {
         await createNotification({
-          userId: post.author_id,
+          userId: post.authorId,
           type: 'like',
           fromUser: user.name,
-          postId: id!,
+          postId: id,
           postTitle: post.title,
           read: false,
           createdAt: Date.now(),
         });
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      showDetailToast('error', '\uC88B\uC544\uC694 \uCC98\uB9AC\uC5D0 \uC2E4\uD328\uD588\uC5B4\uC694.');
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user || !id || !post) return alert('로그인이 필요합니다.');
+
+    try {
+      const bookmarkRef = doc(db, 'users', user.id, 'bookmarks', id);
+      const postRef = doc(db, 'posts', id);
+
+      if (bookmarked) {
+        await deleteDoc(bookmarkRef);
+        await updateDoc(postRef, { bookmarks: increment(-1) });
+        setBookmarked(false);
+      } else {
+        await setDoc(bookmarkRef, {
+          postId: id,
+          title: post.title,
+          boardKey: post.boardKey,
+          createdAt: Date.now(),
+        });
+        await updateDoc(postRef, { bookmarks: increment(1) });
+        setBookmarked(true);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('북마크 처리에 실패했습니다.');
     }
   };
 
   const handleComment = async () => {
-    if (!user) {
-      alert('댓글을 작성하려면 로그인해주세요.');
+    if (!user || !id) {
+      alert('댓글 작성에는 로그인이 필요합니다.');
       navigate('/login');
       return;
     }
+    if (user.isBanned) return;
     if (!commentText.trim()) return;
 
     try {
-      await addDoc(collection(db, 'posts', id!, 'comments'), {
-        content: commentText,
+      await addDoc(collection(db, 'posts', id, 'comments'), {
+        content: commentText.trim(),
         author: user.name,
+        authorDisplayName: user.name,
         author_id: user.id,
         authorEquipped: user.equipped_items || {},
-        replyTo_id: replyTo ? replyTo.id : null,
+        replyTo_id: replyTo?.id || null,
         likes: 0,
-        created_at: Date.now()
+        created_at: Date.now(),
       });
 
-      await updateDoc(doc(db, 'posts', id!), { comments: increment(1) });
-      
+      await updateDoc(doc(db, 'posts', id), { comments: increment(1) });
       if (user.role !== 'admin') {
         await updateDoc(doc(db, 'users', user.id), { points: increment(5) });
       }
 
-      // 댓글 알림: 게시글 작성자에게
-      if (post && post.author_id && post.author_id !== user.id) {
-        if (!replyTo) {
+      if (!replyTo && post?.authorId && post.authorId !== user.id) {
+        await createNotification({
+          userId: post.authorId,
+          type: 'comment',
+          fromUser: user.name,
+          postId: id,
+          postTitle: post.title,
+          read: false,
+          createdAt: Date.now(),
+        });
+      }
+
+      if (replyTo) {
+        const replyCommentSnap = await getDoc(doc(db, 'posts', id, 'comments', replyTo.id));
+        const replyComment = replyCommentSnap.data();
+        if (replyComment?.author_id && replyComment.author_id !== user.id) {
           await createNotification({
-            userId: post.author_id,
-            type: 'comment',
+            userId: replyComment.author_id,
+            type: 'reply',
             fromUser: user.name,
-            postId: id!,
-            postTitle: post.title,
+            postId: id,
+            postTitle: post?.title || '',
             read: false,
             createdAt: Date.now(),
           });
         }
       }
 
-      // 답글 알림: 원 댓글 작성자에게
-      if (replyTo) {
-        const replyCommentSnap = await getDoc(doc(db, 'posts', id!, 'comments', replyTo.id));
-        if (replyCommentSnap.exists()) {
-          const replyCommentData = replyCommentSnap.data();
-          if (replyCommentData.author_id && replyCommentData.author_id !== user.id) {
-            await createNotification({
-              userId: replyCommentData.author_id,
-              type: 'reply',
-              fromUser: user.name,
-              postId: id!,
-              postTitle: post?.title || '',
-              read: false,
-              createdAt: Date.now(),
-            });
-          }
-        }
-      }
-
       setCommentText('');
       setReplyTo(null);
-    } catch (err) {
-      console.error(err);
-      alert('댓글 게시에 실패했습니다.');
+    } catch (error) {
+      console.error(error);
+      alert('댓글 등록에 실패했습니다.');
     }
   };
 
   const handleCommentLike = async (commentId: string) => {
-    if (!user) return alert('로그인해주세요.');
+    if (!user || !id) return alert('로그인이 필요합니다.');
     if (likedComments.has(commentId)) return;
+
     try {
-      setLikedComments(prev => new Set(prev).add(commentId));
-      await updateDoc(doc(db, 'posts', id!, 'comments', commentId), { likes: increment(1) });
-    } catch (err) {
-      console.error(err);
+      setLikedComments((prev) => new Set(prev).add(commentId));
+      await updateDoc(doc(db, 'posts', id, 'comments', commentId), { likes: increment(1) });
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const handleReport = async () => {
-    if (!user) return alert('로그인해주세요.');
-    if (!post) return;
-    const reason = prompt('신고 사유를 입력해주세요:');
-    if (!reason || !reason.trim()) return;
+  const handleReport = () => {
+    if (!user || !id || !post) {
+      showDetailToast('error', '\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD574\uC694.');
+      return;
+    }
+
+    setReportReason('');
+    setReportMessage(null);
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!user || !id || !post) {
+      showDetailToast('error', '\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD574\uC694.');
+      return;
+    }
+
+    const reason = reportReason.trim();
+    if (!reason) {
+      setReportMessage({ type: 'error', message: '\uC2E0\uACE0 \uC0AC\uC720\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694.' });
+      return;
+    }
+
     try {
+      setIsReporting(true);
+      setReportMessage(null);
       await addDoc(collection(db, 'reports'), {
-        type: '게시글',
+        type: '\uAC8C\uC2DC\uAE00',
         contentId: id,
         content: post.title,
-        reason: reason.trim(),
+        reason,
         reporter: user.name,
         reporter_id: user.id,
-        author_id: post.author_id,
+        author_id: post.authorId,
         date: new Date().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace('. ', '/').replace('.', ''),
         status: 'pending',
         createdAt: Date.now(),
       });
-      alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
-    } catch (err) {
-      console.error(err);
-      alert('신고 접수에 실패했습니다.');
+      setReportMessage({ type: 'success', message: '\uC2E0\uACE0\uAC00 \uC811\uC218\uB410\uC5B4\uC694.' });
+      showDetailToast('success', '\uC2E0\uACE0\uAC00 \uC811\uC218\uB410\uC5B4\uC694.');
+      window.setTimeout(() => {
+        setShowReportModal(false);
+        setReportReason('');
+        setReportMessage(null);
+      }, 800);
+    } catch {
+      setReportMessage({
+        type: 'error',
+        message: '\uC2E0\uACE0 \uC811\uC218\uC5D0 \uC2E4\uD328\uD588\uC5B4\uC694. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
+      });
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('게시글 링크를 복사했습니다.');
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
+  const openUserProfile = (userId?: string | null) => {
+    if (!userId) return;
+    navigate(userId === user?.id ? '/mypage' : `/profile/${userId}`);
+  };
+
+  const handleOpenImage = async () => {
+    if (!post?.imageUrl) return;
+
+    try {
+      const url = await resolveStorageSrc(post.imageUrl);
+      if (url) {
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Image open error:', error);
     }
   };
 
@@ -210,8 +492,9 @@ export default function PostDetail() {
     try {
       await updateDoc(doc(db, 'posts', id), { isPinned: !post.isPinned });
       setShowMore(false);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
+      alert('고정 상태 변경에 실패했습니다.');
     }
   };
 
@@ -219,218 +502,318 @@ export default function PostDetail() {
     if (!id || !post) return;
 
     try {
-      // 1. 이미지가 있으면 스토리지에서 삭제
       if (post.imageUrl) {
         try {
-          const imageRef = ref(storage, post.imageUrl);
-          await deleteObject(imageRef);
-        } catch (storageErr) {
-          console.error('Storage deletion error:', storageErr);
+          await deleteObject(ref(storage, post.imageUrl));
+        } catch (storageError) {
+          console.error('Storage deletion error:', storageError);
         }
       }
-
-      // 2. Firestore에서 게시글 삭제
       await deleteDoc(doc(db, 'posts', id));
-      
-      alert('게시글이 삭제되었습니다.');
+      await deleteDoc(doc(db, 'post_owners', id)).catch(() => undefined);
+      alert('게시글을 삭제했습니다.');
       navigate('/board');
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert('게시글 삭제에 실패했습니다.');
     }
   };
 
-  if (loading) return <div style={{padding: '40px', textAlign: 'center'}}>로딩 중...</div>;
-  if (!post) return null;
+  const renderComment = (comment: CommentRow, isReply = false) => {
+    const displayName = comment.authorDisplayName || comment.author || '익명';
+    const equipped = comment.authorEquipped || {};
+    const avatarFrameId = equipped.avatarFrame;
+    const avatarFrameStyle = avatarFrameId ? shopItemsMap[avatarFrameId]?.style : undefined;
 
-  const formatDate = (ts: number) => {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
-  const isAuthor = user && user.id === post.author_id;
-
-  return (
-    <div className="post-detail-page animate-fade-in">
-      <div className="detail-header">
-        <button className="icon-button back-btn" onClick={() => navigate(-1)}>
-          <ArrowLeft size={20} />
-        </button>
-        <span className="detail-category">{post.board}</span>
-        <div className="detail-header-actions">
-          <div style={{ position: 'relative' }}>
-            <button className="icon-button" onClick={() => setShowMore(!showMore)}>
-              <MoreVertical size={20} />
+    return (
+      <div key={comment.id} className={`comment-item ${isReply ? 'reply' : ''}`}>
+        <div
+          className="comment-avatar"
+          style={{
+            border: avatarFrameStyle ? `2px solid ${avatarFrameStyle}` : undefined,
+            boxShadow: avatarFrameStyle ? `0 0 8px ${avatarFrameStyle}44` : undefined,
+          }}
+        >
+          {displayName[0]}
+        </div>
+        <div className="comment-body">
+          <div className="comment-header">
+            {comment.author_id ? (
+              <button
+                type="button"
+                className={`comment-author-link ${comment.author_id === post?.authorId ? 'is-writer' : ''}`}
+                onClick={() => openUserProfile(comment.author_id)}
+              >
+                {displayName}
+              </button>
+            ) : (
+              <strong className={comment.author_id === post?.authorId ? 'is-writer' : ''}>{displayName}</strong>
+            )}
+            {comment.author_id === post?.authorId && <span className="writer-tag">작성자</span>}
+            <time>{formatBoardDate(comment.created_at)}</time>
+          </div>
+          <p>{comment.content}</p>
+          <div className="comment-actions">
+            <button
+              type="button"
+              className={likedComments.has(comment.id) ? 'active' : ''}
+              onClick={() => handleCommentLike(comment.id)}
+            >
+              <ThumbsUp size={13} />
+              {comment.likes || 0}
             </button>
-            {showMore && (isAuthor || isAdmin) && (
-              <div className="more-menu glass-panel animate-fade-in" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, width: '150px' }}>
-                {isAdmin && (
-                  <button className="menu-item" onClick={handleTogglePin}>
-                    <Shield size={16} /> {post.isPinned ? '공지 해제' : '공지로 등록'}
-                  </button>
-                )}
-                {isAuthor && <button className="menu-item" onClick={() => navigate(`/edit/${id}`)}><Edit2 size={16} /> 수정하기</button>}
-                <button className="menu-item delete" onClick={() => setShowDeleteModal(true)}><Trash2 size={16} /> 삭제하기</button>
-              </div>
+            {!isReply && (
+              <button type="button" onClick={() => setReplyTo({ id: comment.id, author: displayName })}>
+                답글
+              </button>
             )}
           </div>
         </div>
       </div>
+    );
+  };
 
+  if (loading) return <div className="post-state">게시글을 불러오는 중입니다.</div>;
+  if (!post || !id) return null;
 
-      <article className="detail-content">
-        <h1 className="detail-title">{post.title}</h1>
-        <div className="detail-meta">
-          <div className="author-info">
-            <div className="author-avatar" style={{
-                display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', 
-                background: authorInfo?.equipped_items?.nameColor ? `${shopItemsMap[authorInfo.equipped_items.nameColor]?.style}22` : 'var(--border-light)', 
-                color: shopItemsMap[authorInfo?.equipped_items?.nameColor]?.style || 'var(--text-muted)',
-                border: authorInfo?.equipped_items?.avatarFrame ? `3px solid ${shopItemsMap[authorInfo.equipped_items.avatarFrame]?.style}` : 'none',
-                boxShadow: authorInfo?.equipped_items?.avatarFrame ? `0 0 10px ${shopItemsMap[authorInfo.equipped_items.avatarFrame]?.style}55` : 'none'
-            }}>{post.author?.[0]}</div>
+  const authorBannerStyle = !post.anonymous
+    ? post.authorEquipped.profileBg
+      ? shopItemsMap[post.authorEquipped.profileBg]?.style || '#00aeff'
+      : '#00aeff'
+    : undefined;
+  const detailContentStyle = authorBannerStyle ? ({ '--author-banner': authorBannerStyle } as CSSProperties) : undefined;
+  const visibleSchoolName = authorProfile
+    ? getVisibleSchoolName(authorProfile, user)
+    : post.authorId
+      ? ''
+      : getVisibleSchoolName(
+          {
+            id: '',
+            schoolCode: post.schoolCode || '',
+            schoolName: post.schoolName || '',
+          },
+          user
+        );
 
-            <div className="author-text">
-              <span className="author-name" style={{ color: shopItemsMap[authorInfo?.equipped_items?.nameColor]?.style || 'inherit', fontWeight: 800 }}>
-                {post.author} 
-                {authorInfo?.equipped_items?.badge && (
-                    <span className="shop-badge-inline" style={{ marginLeft: '6px', background: shopItemsMap[authorInfo.equipped_items.badge]?.style, color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle' }}>
-                        {shopItemsMap[authorInfo.equipped_items.badge]?.name}
-                    </span>
-                )}
-                {isAuthor && <span className="writer-tag">작성자</span>}
-              </span>
-              <span className="post-time">{formatDate(post.created_at)}</span>
+  return (
+    <div className="post-detail-page animate-fade-in">
+      <div className="detail-topbar">
+        <button className="icon-button" onClick={() => navigate(-1)} type="button" aria-label="뒤로 가기">
+          <ArrowLeft size={20} />
+        </button>
+        <span className={`detail-board detail-board-${post.boardKey}`}>{post.boardLabel}</span>
+        <div className="detail-header-actions">
+          <button className="icon-button" onClick={handleShare} type="button" aria-label="공유">
+            <Share2 size={19} />
+          </button>
+          {isPostOwner && (
+            <div className="more-wrap">
+              <button className="icon-button" onClick={() => setShowMore((value) => !value)} type="button" aria-label="더 보기">
+                <MoreVertical size={20} />
+              </button>
+              {showMore && (
+                <div className="more-menu">
+                  {isAdmin && (
+                    <button type="button" onClick={handleTogglePin}>
+                      <Shield size={16} />
+                      {post.isPinned ? '고정 해제' : '상단 고정'}
+                    </button>
+                  )}
+                  {isPostOwner && (
+                    <button type="button" onClick={() => navigate(`/edit/${id}`)}>
+                      <Edit2 size={16} />
+                      수정
+                    </button>
+                  )}
+                  <button type="button" className="danger" onClick={() => setShowDeleteModal(true)}>
+                    <Trash2 size={16} />
+                    삭제
+                  </button>
+                </div>
+              )}
             </div>
+          )}
+        </div>
+      </div>
 
-
+      <article className={`detail-content ${authorBannerStyle ? 'has-author-banner' : ''}`} style={detailContentStyle}>
+        <header className="detail-title-block">
+          {post.isPinned && <span className="detail-pin">상단 고정</span>}
+          <h1>{post.title}</h1>
+          <div className="detail-meta">
+            {!post.anonymous && post.authorId ? (
+              <button type="button" className="detail-author detail-author-link" onClick={() => openUserProfile(post.authorId)}>
+                {post.authorDisplayName}
+              </button>
+            ) : (
+              <span className="detail-author">{post.authorDisplayName}</span>
+            )}
+            {visibleSchoolName && <span>{visibleSchoolName}</span>}
+            <time>{formatBoardDate(post.createdAt)}</time>
+            <span>
+              <Eye size={14} />
+              {post.views}
+            </span>
           </div>
-          <div className="post-view-count"><Eye size={14}/> {post.views}</div>
-        </div>
+        </header>
 
-        <div className="detail-body">
-          {post.imageUrl && (
-            <div className="post-image-content">
-              <img src={post.imageUrl} alt="post content" onClick={() => window.open(post.imageUrl, '_blank')} />
-            </div>
-          )}
-          <p style={{whiteSpace: 'pre-wrap'}}>{post.content}</p>
+        {post.imageUrl && (
+          <button className="post-image-content" type="button" onClick={() => void handleOpenImage()}>
+            <StorageImage src={post.imageUrl} alt="게시글 이미지" />
+          </button>
+        )}
 
-          {/* 해시태그 렌더링 섹션 */}
-          {post.tags && post.tags.length > 0 && (
-            <div className="post-tags-container" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '24px' }}>
-              {post.tags.map((tag: string, idx: number) => (
-                <span 
-                    key={idx} 
-                    onClick={() => navigate(`/board?search=${encodeURIComponent('#' + tag)}`)}
-                    style={{ background: 'var(--primary-light)', border: '1px solid var(--primary)', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        <div className="detail-body">{post.content}</div>
+
+        {post.tags.length > 0 && (
+          <div className="post-tags-container">
+            {post.tags.map((tag) => (
+              <button type="button" key={tag} onClick={() => navigate(`/board?search=${encodeURIComponent(`#${tag}`)}`)}>
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="detail-actions">
-          <button className={`action-btn ${liked ? 'active-like' : ''}`} onClick={handleLike}>
-            <Heart size={20} fill={liked ? '#FF4757' : 'none'} /> {post.likes}
+          <button type="button" className={liked ? 'active-like' : ''} onClick={handleLike}>
+            <Heart size={20} fill={liked ? 'currentColor' : 'none'} />
+            추천 {post.likes}
           </button>
-          <button className="action-btn">
-            <Share2 size={20} /> 공유
+          <button type="button" className={bookmarked ? 'active-bookmark' : ''} onClick={handleBookmark}>
+            {bookmarked ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+            북마크 {post.bookmarks}
           </button>
-          <button className="action-btn danger" onClick={handleReport}>
-            <AlertOctagon size={20} /> 신고
+          <button type="button" className="danger" onClick={handleReport}>
+            <AlertOctagon size={20} />
+            신고
           </button>
         </div>
       </article>
 
+      {relatedPosts.length > 0 && (
+        <section className="related-section">
+          <div className="related-header">
+            <h2>같은 카테고리의 다른 글</h2>
+            <span>{post.boardLabel}</span>
+          </div>
+          <div className="related-grid">
+            {relatedPosts.map((item) => (
+              <button key={item.id} type="button" className="related-card" onClick={() => navigate(`/post/${item.id}`)}>
+                <span>{item.boardLabel}</span>
+                <strong>{item.title}</strong>
+                <p>
+                  {item.authorDisplayName} · {formatBoardDate(item.createdAt)}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="comment-section">
-        <h3 className="comment-section-title">💬 댓글 <span className="comment-count">{post.comments || 0}</span></h3>
+        <h2>
+          <MessageCircle size={19} />
+          댓글 {post.comments || commentsList.length}
+        </h2>
 
         <div className="comment-input-area">
-          <div className="comment-my-avatar" style={{display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', background: 'var(--gradient)', color: 'white'}}>
-            {user ? user.name[0] : '?'}
-          </div>
+          <div className="comment-my-avatar">{user?.name?.[0] || '?'}</div>
           <div className="comment-input-wrap">
             {replyTo && (
-              <div style={{ background: 'var(--bg-main)', padding: '6px 12px', borderRadius: '8px 8px 0 0', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span><strong>{replyTo.author}</strong>님에게 답글 작성 중...</span>
-                <button onClick={() => setReplyTo(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 4px' }}>✕</button>
+              <div className="reply-banner">
+                <span>{replyTo.author}님에게 답글 작성 중</span>
+                <button type="button" onClick={() => setReplyTo(null)}>
+                  취소
+                </button>
               </div>
             )}
             <input
               type="text"
-              placeholder={user?.isBanned ? "활동이 정지되어 댓글을 작성할 수 없습니다." : (user ? "댓글을 남겨보세요..." : "로그인 후 댓글을 남길 수 있습니다")}
-              className="comment-input"
+              placeholder={user?.isBanned ? '제재 상태에서는 댓글을 작성할 수 없습니다.' : '댓글을 입력해 주세요.'}
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => event.key === 'Enter' && handleComment()}
               disabled={!user || user.isBanned}
-              onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-              style={replyTo ? { borderRadius: '0 0 20px 20px' } : {}}
             />
-            <button className={`submit-comment ${commentText ? 'active' : ''}`} onClick={handleComment} disabled={user?.isBanned}>
+            <button type="button" className={commentText.trim() ? 'active' : ''} onClick={handleComment} disabled={!commentText.trim()}>
               <Send size={18} />
             </button>
           </div>
         </div>
 
         <div className="comment-list">
-          {commentsList.length === 0 ? (
-            <div style={{padding: '20px', textAlign: 'center', color: '#888'}}>첫 번째 댓글을 남겨보세요!</div>
-          ) : commentsList.map((comment: any) => (
-            <div key={comment.id} className="comment-thread" style={{ marginLeft: comment.replyTo_id ? '32px' : '0', borderLeft: comment.replyTo_id ? '2px solid var(--border-light)' : 'none', paddingLeft: comment.replyTo_id ? '16px' : '0' }}>
-              <div className="comment-item">
-                <div className="comment-avatar" style={{
-                    display: 'flex', alignItems:'center', justifyContent:'center', fontWeight: 'bold', 
-                    background: 'var(--border-light)', color: 'var(--text-muted)',
-                    border: comment.authorEquipped?.avatarFrame ? `2px solid ${shopItemsMap[comment.authorEquipped.avatarFrame]?.style}` : 'none',
-                    boxShadow: comment.authorEquipped?.avatarFrame ? `0 0 6px ${shopItemsMap[comment.authorEquipped.avatarFrame]?.style}44` : 'none'
-                }}>{comment.author?.[0]}</div>
-
-                <div className="comment-body">
-                  <div className="comment-header">
-                    <span className={`comment-author ${comment.author_id === post.author_id ? 'is-writer' : ''}`} style={{ color: shopItemsMap[comment.authorEquipped?.nameColor]?.style || 'inherit', fontWeight: 700 }}>
-                      {comment.author}
-                      {comment.authorEquipped?.badge && (
-                          <span className="shop-badge-inline" style={{ marginLeft: '4px', background: shopItemsMap[comment.authorEquipped.badge]?.style, color: 'white', fontSize: '9px', padding: '1px 4px', borderRadius: '3px', verticalAlign: 'middle' }}>
-                              {shopItemsMap[comment.authorEquipped.badge]?.name}
-                          </span>
-                      )}
-                      {comment.author_id === post.author_id && <span className="writer-tag">작성자</span>}
-                    </span>
-                    <span className="comment-time">{formatDate(comment.created_at)}</span>
-                  </div>
-
-                  <p className="comment-text">{comment.content}</p>
-                  <div className="comment-actions">
-                    <button className={`comment-btn like-btn ${likedComments.has(comment.id) ? 'active' : ''}`} onClick={() => handleCommentLike(comment.id)} style={likedComments.has(comment.id) ? { color: '#ff4757' } : {}}>
-                      <ThumbsUp size={13} fill={likedComments.has(comment.id) ? '#ff4757' : 'none'} /> {comment.likes || 0}
-                    </button>
-                    {!comment.replyTo_id && (
-                      <button className="comment-btn reply-btn" onClick={() => setReplyTo({ id: comment.id, author: comment.author })}>답글 달기</button>
-                    )}
-                  </div>
-                </div>
+          {rootComments.length === 0 ? (
+            <div className="comment-empty">첫 댓글을 남겨 보세요.</div>
+          ) : (
+            rootComments.map((comment) => (
+              <div key={comment.id} className="comment-thread">
+                {renderComment(comment)}
+                {(repliesByParent[comment.id] || []).map((reply) => renderComment(reply, true))}
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </section>
 
-      {/* 프리미엄 삭제 확인 모달 */}
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
         title="게시글 삭제"
-        message="정말로 이 게시글을 삭제하시겠습니까? 삭제된 게시글은 복구할 수 없습니다."
-        confirmText="삭제하기"
+        message="이 게시글을 삭제할까요? 삭제 후에는 복구할 수 없습니다."
+        confirmText="삭제"
         type="danger"
       />
+
+      {showReportModal && (
+        <div className="report-modal-overlay" role="presentation" onMouseDown={() => setShowReportModal(false)}>
+          <section
+            className="report-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="report-modal-header">
+              <div>
+                <h2 id="report-modal-title">게시글 신고</h2>
+                <p>문제가 되는 이유를 짧게 적어 주세요.</p>
+              </div>
+              <button type="button" className="report-modal-close" onClick={() => setShowReportModal(false)} aria-label="신고 창 닫기">
+                <X size={18} />
+              </button>
+            </div>
+            <textarea
+              className="report-reason-input"
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              placeholder="예: 욕설, 괴롭힘, 부적절한 내용"
+              maxLength={300}
+              autoFocus
+            />
+            <div className="report-modal-footer">
+              <span>{reportReason.trim().length}/300</span>
+              {reportMessage && <p className={`report-message ${reportMessage.type}`}>{reportMessage.message}</p>}
+            </div>
+            <div className="report-modal-actions">
+              <button type="button" className="report-cancel-button" onClick={() => setShowReportModal(false)} disabled={isReporting}>
+                취소
+              </button>
+              <button
+                type="button"
+                className="report-submit-button"
+                onClick={submitReport}
+                disabled={isReporting || !reportReason.trim()}
+              >
+                {isReporting ? '접수 중' : '신고하기'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {detailToast && <div className={`post-detail-toast ${detailToast.type}`}>{detailToast.message}</div>}
     </div>
   );
 }

@@ -20,14 +20,14 @@ export default function ConfirmModal({
   message,
   confirmText = '확인',
   cancelText = '취소',
-  type = 'primary'
+  type = 'primary',
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay animate-fade-in" onClick={onClose}>
-      <div className="confirm-modal-v3 animate-scale-up" onClick={e => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}>
+      <div className="confirm-modal-v3 animate-scale-up" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose} aria-label="닫기">
           <X size={20} />
         </button>
 
@@ -46,10 +46,13 @@ export default function ConfirmModal({
           <button className="modal-btn-cancel" onClick={onClose}>
             {cancelText}
           </button>
-          <button className={`modal-btn-confirm ${type}`} onClick={() => {
-            onConfirm();
-            onClose();
-          }}>
+          <button
+            className={`modal-btn-confirm ${type}`}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
             {confirmText}
           </button>
         </div>

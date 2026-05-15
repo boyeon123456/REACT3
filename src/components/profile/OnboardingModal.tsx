@@ -5,6 +5,7 @@ import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import SchoolSearchModal from './SchoolSearchModal';
 import type { SchoolInfo } from '../../api/neisApi';
+import type { User } from '../../store/authStore';
 import './OnboardingModal.css';
 
 export default function OnboardingModal() {
@@ -33,13 +34,32 @@ export default function OnboardingModal() {
     if (!user) return;
     setSaving(true);
     try {
-      const updates: Record<string, any> = { isStudent };
-      if (isStudent && schoolInfo) {
-        updates.schoolName = schoolInfo.schoolName;
-        updates.schoolCode = schoolInfo.schoolCode;
-        updates.officeCode = schoolInfo.officeCode;
-        updates.grade = grade;
-        updates.class = classNum;
+      const selectedIsStudent = isStudent ?? user.isStudent ?? false;
+      const selectedSchool = schoolInfo || (
+        user.schoolCode && user.officeCode && user.schoolName
+          ? {
+              schoolName: user.schoolName,
+              schoolCode: user.schoolCode,
+              officeCode: user.officeCode,
+            }
+          : null
+      );
+      const updates: Partial<User> = {
+        isStudent: selectedIsStudent && Boolean(selectedSchool),
+      };
+
+      if (updates.isStudent && selectedSchool) {
+        updates.schoolName = selectedSchool.schoolName;
+        updates.schoolCode = selectedSchool.schoolCode;
+        updates.officeCode = selectedSchool.officeCode;
+        updates.grade = grade || user.grade || '1';
+        updates.class = classNum || user.class || '1';
+      } else {
+        updates.schoolName = '';
+        updates.schoolCode = '';
+        updates.officeCode = '';
+        updates.grade = '';
+        updates.class = '';
       }
       await updateDoc(doc(db, 'users', user.id), updates);
       patchUser(updates);

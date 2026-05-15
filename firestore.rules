@@ -4,75 +4,454 @@ service cloud.firestore {
 
     // Admin email list must stay in sync with src/lib/isAdmin.ts (ADMIN_EMAILS).
 
-    // ──────────────────────────────────────────
-    // Helpers
-    // ──────────────────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        ((request.auth.token.email != null && (request.auth.token.email == 'boyeon5600@gmail.com' || request.auth.token.email == 'admin_test_123@school.com')) ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      return isAuthenticated()
+        && (
+          (request.auth.token.email != null
+            && (
+              request.auth.token.email == 'boyeon5600@gmail.com'
+            ))
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          )
+        );
     }
 
-    // 차단 여부 확인 (문서가 없을 때는 차단되지 않은 것으로 간주)
     function isNotBanned() {
-      return isAuthenticated() && 
-        (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-         !('isBanned' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false);
+      return isAuthenticated()
+        && (
+          !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          || !('isBanned' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false
+        );
     }
 
-    // ──────────────────────────────────────────
-    // 유저 문서
-    // ──────────────────────────────────────────
+    function isPostOwner(postId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/post_owners/$(postId))
+        && get(/databases/$(database)/documents/post_owners/$(postId)).data.ownerId == request.auth.uid;
+    }
+
+    function hasSafePostAuthorData(data) {
+      return data.anonymous != true
+        || (
+          (!('author_id' in data) || data.author_id == null)
+          && data.authorEquipped is map
+          && data.authorEquipped.keys().size() == 0
+        );
+    }
+
+    function hasValidPostShape(data) {
+      return data.keys().hasOnly([
+          'title',
+          'content',
+          'board',
+          'boardKey',
+          'scope',
+          'isPublic',
+          'anonymous',
+          'author',
+          'authorDisplayName',
+          'author_id',
+          'authorEquipped',
+          'schoolCode',
+          'imagePath',
+          'tags',
+          'likes',
+          'views',
+          'comments',
+          'bookmarks',
+          'isPinned',
+          'created_at',
+          'updated_at'
+        ])
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 100
+        && data.content is string
+        && data.content.size() > 0
+        && data.content.size() <= 5000
+        && data.board is string
+        && data.board.size() > 0
+        && data.boardKey is string
+        && data.boardKey in ['free', 'notice', 'grade1', 'grade2', 'grade3', 'council']
+        && data.scope in ['global', 'school']
+        && data.isPublic is bool
+        && data.isPublic == (data.scope == 'global')
+        && data.anonymous is bool
+        && data.author is string
+        && data.authorDisplayName is string
+        && data.authorEquipped is map
+        && (
+          !('imagePath' in data)
+          || data.imagePath == null
+          || data.imagePath is string
+        )
+        && (
+          !('tags' in data)
+          || (
+            data.tags is list
+            && data.tags.size() <= 5
+          )
+        )
+        && data.likes is int
+        && data.likes >= 0
+        && data.views is int
+        && data.views >= 0
+        && data.comments is int
+        && data.comments >= 0
+        && data.bookmarks is int
+        && data.bookmarks >= 0
+        && data.isPinned is bool
+        && data.created_at is int
+        && (
+          !('updated_at' in data)
+          || data.updated_at is int
+        )
+        && (
+          data.scope == 'school'
+          ? (
+            data.schoolCode is string
+            && data.schoolCode.size() > 0
+          )
+          : (
+            !('schoolCode' in data)
+            || data.schoolCode == null
+            || data.schoolCode == ''
+          )
+        );
+    }
+
+    function hasValidSettings(data) {
+      return data.settings is map
+        && data.settings.keys().hasOnly(['notifications', 'appearance', 'privacy'])
+        && data.settings.notifications is map
+        && data.settings.notifications.keys().hasOnly(['inApp', 'email'])
+        && data.settings.notifications.inApp is bool
+        && data.settings.notifications.email is bool
+        && (
+          !('appearance' in data.settings)
+          || (
+            data.settings.appearance is map
+            && data.settings.appearance.keys().hasOnly(['theme', 'accent', 'density', 'reducedMotion'])
+            && data.settings.appearance.theme in ['light', 'dark']
+            && data.settings.appearance.accent in ['blue', 'coral', 'mint', 'violet']
+            && data.settings.appearance.density in ['comfortable', 'compact']
+            && data.settings.appearance.reducedMotion is bool
+          )
+        )
+        && (
+          !('privacy' in data.settings)
+          || (
+            data.settings.privacy is map
+            && data.settings.privacy.keys().hasOnly(['hideSchoolName'])
+            && data.settings.privacy.hideSchoolName is bool
+          )
+        );
+    }
+
+    function isValidHexColor(value) {
+      return value is string
+        && value.matches('^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$');
+    }
+
+    function hasValidProfileStyle(data) {
+      return !('profileStyle' in data)
+        || (
+          data.profileStyle is map
+          && data.profileStyle.keys().hasOnly(['nameColor', 'handleColor', 'bioColor', 'backgroundColor'])
+          && (!('nameColor' in data.profileStyle) || data.profileStyle.nameColor == '' || isValidHexColor(data.profileStyle.nameColor))
+          && (!('handleColor' in data.profileStyle) || data.profileStyle.handleColor == '' || isValidHexColor(data.profileStyle.handleColor))
+          && (!('bioColor' in data.profileStyle) || data.profileStyle.bioColor == '' || isValidHexColor(data.profileStyle.bioColor))
+          && (!('backgroundColor' in data.profileStyle) || data.profileStyle.backgroundColor == '' || isValidHexColor(data.profileStyle.backgroundColor))
+        );
+    }
+
+    function hasValidStudentFields(data) {
+      return data.isStudent is bool
+        && (
+          (
+            data.isStudent == true
+            && data.schoolName is string
+            && data.schoolName.size() > 0
+            && data.schoolCode is string
+            && data.schoolCode.size() > 0
+            && data.officeCode is string
+            && data.officeCode.size() > 0
+            && data.grade is string
+            && data.grade in ['1', '2', '3', '4', '5', '6']
+            && data.class is string
+            && data.class in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15']
+          )
+          || (
+            data.isStudent == false
+            && data.schoolName == ''
+            && data.schoolCode == ''
+            && data.officeCode == ''
+            && data.grade == ''
+            && data.class == ''
+          )
+        );
+    }
+
+    function hasValidProfileShape(data) {
+      return data.id is string
+        && data.email is string
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 15
+        && data.role is string
+        && data.level is int
+        && data.points is int
+        && data.created_at is int
+        && data.equipped_items is map
+        && (
+          !('photoURL' in data)
+          || data.photoURL == null
+          || data.photoURL is string
+        )
+        && (
+          !('handle' in data)
+          || (
+            data.handle is string
+            && (
+              data.handle == ''
+              || (
+                data.handle.size() >= 3
+                && data.handle.size() <= 20
+                && data.handle.matches('^[a-z0-9_]+$')
+              )
+            )
+          )
+        )
+        && (
+          !('bio' in data)
+          || data.bio is string
+        )
+        && (
+          !('statusMessage' in data)
+          || data.statusMessage is string
+        )
+        && (
+          !('featuredBadgeId' in data)
+          || data.featuredBadgeId is string
+        )
+        && (
+          !('badges' in data)
+          || data.badges is list
+        )
+        && (
+          !('gameCount' in data)
+          || data.gameCount is int
+        )
+        && (
+          !('isBanned' in data)
+          || data.isBanned is bool
+        )
+        && hasValidSettings(data)
+        && hasValidProfileStyle(data)
+        && hasValidStudentFields(data);
+    }
+
+    function isValidInitialUserCreate(userId) {
+      return isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'email',
+          'name',
+          'points',
+          'level',
+          'role',
+          'isStudent',
+          'schoolName',
+          'schoolCode',
+          'officeCode',
+          'grade',
+          'class',
+          'created_at',
+          'settings',
+          'equipped_items'
+        ])
+        && hasValidProfileShape(request.resource.data)
+        && request.resource.data.id == userId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'user'
+        && request.resource.data.points == 100
+        && request.resource.data.level == 1
+        && request.resource.data.equipped_items.keys().size() == 0;
+    }
+
+    function isAllowedSelfUserUpdate(userId) {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isAuthenticated()
+        && request.auth.uid == userId
+        && isNotBanned()
+        && changedKeys.hasOnly([
+          'name',
+          'handle',
+          'profileStyle',
+          'photoURL',
+          'bio',
+          'statusMessage',
+          'featuredBadgeId',
+          'isStudent',
+          'schoolName',
+          'schoolCode',
+          'officeCode',
+          'grade',
+          'class',
+          'settings',
+          'equipped_items',
+          'badges',
+          'gameCount'
+        ])
+        && hasValidProfileShape(request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.level == resource.data.level
+        && request.resource.data.points == resource.data.points
+        && request.resource.data.created_at == resource.data.created_at
+        && (
+          !('isBanned' in resource.data)
+          ? !('isBanned' in request.resource.data)
+          : request.resource.data.isBanned == resource.data.isBanned
+        );
+    }
+
+    function isAllowedSelfGameUpdate(userId) {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isAuthenticated()
+        && request.auth.uid == userId
+        && isNotBanned()
+        && changedKeys.hasOnly([
+          'points',
+          'level',
+          'gameCount',
+          'badges'
+        ])
+        && hasValidProfileShape(request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.created_at == resource.data.created_at
+        && request.resource.data.points >= 0
+        && request.resource.data.level >= 1
+        && request.resource.data.level <= 5
+        && (
+          !('gameCount' in request.resource.data)
+          || request.resource.data.gameCount >= (('gameCount' in resource.data) ? resource.data.gameCount : 0)
+        )
+        && (
+          !('isBanned' in resource.data)
+          ? !('isBanned' in request.resource.data)
+          : request.resource.data.isBanned == resource.data.isBanned
+        );
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
-      // 가입 시 create는 isNotBanned 없이 허용
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      // 본인: 일반 프로필 수정. 타인: 관리자만 points / isBanned 변경 가능.
-      allow update: if (isAuthenticated() && request.auth.uid == userId && isNotBanned())
-        || (isAdmin() && request.auth.uid != userId
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'isBanned']));
+      allow create: if isValidInitialUserCreate(userId);
+      allow update: if isAllowedSelfUserUpdate(userId)
+        || isAllowedSelfGameUpdate(userId)
+        || (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'isBanned'])
+        );
       allow delete: if isAdmin();
 
-      // 인벤토리 (서브컬렉션)
       match /inventory/{itemId} {
         allow read, write: if isAuthenticated() && request.auth.uid == userId;
       }
+
+      match /bookmarks/{postId} {
+        allow read, create, update, delete: if isAuthenticated() && request.auth.uid == userId && isNotBanned();
+      }
     }
 
-    // ──────────────────────────────────────────
-    // 학교 통계 및 랭킹 (school_stats)
-    // ──────────────────────────────────────────
     match /school_stats/{schoolCode} {
       allow read: if true;
       allow write: if isAuthenticated() && isNotBanned();
     }
 
-    // ──────────────────────────────────────────
-    // 게시글 및 댓글
-    // ──────────────────────────────────────────
     match /posts/{postId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && isNotBanned();
-      allow update: if isNotBanned();
-      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.author_id);
+      allow read: if isAuthenticated() && isNotBanned();
+      allow create: if isAuthenticated()
+        && isNotBanned()
+        && hasSafePostAuthorData(request.resource.data)
+        && hasValidPostShape(request.resource.data);
+      allow update: if isAdmin()
+        || (
+          isAuthenticated()
+          && isNotBanned()
+          && (
+            request.auth.uid == resource.data.author_id
+            || isPostOwner(postId)
+          )
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'title',
+            'content',
+            'board',
+            'boardKey',
+            'scope',
+            'isPublic',
+            'anonymous',
+            'author',
+            'author_id',
+            'authorDisplayName',
+            'authorEquipped',
+            'schoolCode',
+            'schoolName',
+            'imagePath',
+            'imageUrl',
+            'tags',
+            'updated_at'
+          ])
+          && hasSafePostAuthorData(request.resource.data)
+          && hasValidPostShape(request.resource.data)
+        )
+        || (
+          isAuthenticated()
+          && isNotBanned()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'likes', 'comments', 'bookmarks'])
+          && hasValidPostShape(request.resource.data)
+        );
+      allow delete: if isAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.author_id || isPostOwner(postId)));
+
+      match /likes/{userId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isAuthenticated() && isNotBanned() && request.auth.uid == userId;
+        allow update: if false;
+      }
 
       match /comments/{commentId} {
-        allow read: if true;
+        allow read: if isAuthenticated() && isNotBanned();
         allow create: if isAuthenticated() && isNotBanned();
-        allow update: if isNotBanned();
+        allow update: if isAuthenticated()
+          && isNotBanned()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
         allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.author_id);
       }
     }
 
-    // ──────────────────────────────────────────
-    // 기타 컬렉션
-    // ──────────────────────────────────────────
+    match /post_owners/{postId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated()
+        && isNotBanned()
+        && !exists(/databases/$(database)/documents/posts/$(postId))
+        && request.resource.data.keys().hasOnly(['ownerId', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.createdAt is int;
+      allow update: if false;
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+    }
+
     match /notifications/{notifId} {
       allow read, update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
       allow create: if isAuthenticated();
@@ -84,7 +463,7 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read: if true;
+      allow read: if isAuthenticated() && isNotBanned();
       allow write: if isAdmin();
     }
 

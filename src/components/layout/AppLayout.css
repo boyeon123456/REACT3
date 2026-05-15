@@ -2,30 +2,35 @@
   display: flex;
   min-height: 100vh;
   width: 100%;
+  background: transparent;
 }
 
 .main-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* important for preventing flex children from overflowing */
+  min-width: 0;
 }
 
 .content-area {
   display: flex;
   flex: 1;
-  padding: 32px;
-  gap: 32px;
-  max-width: 1600px;
-  margin: 0 auto;
+  gap: 28px;
   width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 28px;
 }
 
-@media (max-width: 430px) {
-  .content-area {
-    padding: 12px;
-    gap: 12px;
-  }
+.content-area.no-right-panel {
+  max-width: 1280px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.44);
+  z-index: 99;
 }
 
 .main-content {
@@ -37,6 +42,12 @@
 
 .game-focus-layout {
   background: var(--bg-main);
+  --app-header-height: 0px;
+  --app-content-padding-y: 56px;
+}
+
+.game-focus-layout.game-mobile-nav-layout {
+  --app-header-height: 76px;
 }
 
 .game-focus-wrapper {
@@ -44,24 +55,79 @@
 }
 
 .game-focus-content {
-  max-width: 1280px;
+  max-width: 100%;
   justify-content: center;
+  min-height: calc(100dvh - var(--app-header-height));
 }
 
 .game-focus-main {
   max-width: 100%;
- }
+  min-height: 0;
+}
+
+body.game-focus-page,
+body.game-focus-page .main-wrapper,
+body.game-focus-page .content-area,
+body.game-focus-page .main-content {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body.game-focus-page::-webkit-scrollbar,
+body.game-focus-page .main-wrapper::-webkit-scrollbar,
+body.game-focus-page .content-area::-webkit-scrollbar,
+body.game-focus-page .main-content::-webkit-scrollbar {
+  display: none;
+}
 
 @media (max-width: 1024px) {
   .content-area {
-    padding: 24px;
-    gap: 24px;
+    gap: 20px;
+    padding: 22px;
+    max-width: 100%;
+  }
+
+  .game-focus-layout {
+    --app-content-padding-y: 44px;
   }
 }
 
 @media (max-width: 768px) {
+  .app-layout {
+    min-height: 100dvh;
+  }
+
   .content-area {
-    padding: 16px;
     flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    padding-bottom: 20px;
+  }
+
+  .main-wrapper {
+    min-width: 100%;
+  }
+
+  .main-content {
+    gap: 0;
+  }
+
+  .game-focus-layout {
+    --app-content-padding-y: 28px;
+  }
+}
+
+@media (max-width: 430px) {
+  .content-area {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .game-focus-layout {
+    --app-content-padding-y: 24px;
+  }
+
+  .game-focus-layout.game-mobile-nav-layout {
+    --app-header-height: 62px;
   }
 }

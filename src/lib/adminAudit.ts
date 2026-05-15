@@ -1,4 +1,4 @@
-import { collection, addDoc } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { User } from '../store/authStore';
 
@@ -17,8 +17,11 @@ export type AdminAuditAction =
   | 'user.points_update'
   | 'user.ban_toggle'
   | 'settings.announcements'
+  | 'settings.announcements_reorder'
   | 'timetable.save'
+  | 'shop.seed_defaults'
   | 'shop.item_create'
+  | 'shop.item_update'
   | 'shop.item_delete';
 
 export async function logAdminAction(
@@ -27,6 +30,7 @@ export async function logAdminAction(
   opts: { targetCollection?: string; targetId?: string; detail?: Record<string, unknown> }
 ): Promise<void> {
   if (!actor) return;
+
   try {
     await addDoc(collection(db, 'admin_audit_logs'), {
       actorUid: actor.id,

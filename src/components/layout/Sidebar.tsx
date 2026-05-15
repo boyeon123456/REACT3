@@ -5,7 +5,7 @@ import { Home, MessageSquare, Edit3, Gamepad2, User, ShieldAlert, ChevronLeft, C
 
 import { useAuthStore } from '../../store/authStore';
 import { isAdminUser } from '../../lib/isAdmin';
-import logoImage from '../../assets/670483720_1443067160639588_6486915911126418629_n.png';
+import logo from '../../assets/Schooly (2).png';
 import './Sidebar.css';
 
 interface NavItem {
@@ -62,11 +62,11 @@ export default function Sidebar({ mobileMenuOpen, closeMobileMenu }: { mobileMen
       <Link to="/" className={`sidebar-logo ${collapsed ? 'collapsed' : ''}`} onClick={closeMobileMenu}>
         <div className="logo-icon">
           <img 
-            src={logoImage} 
+            src={logo} 
             alt="logo" 
             style={{ 
-              width: collapsed ? 42 : 180, 
-              height: collapsed ? 42 : 50, 
+              width: collapsed ? 42 : 200, 
+              height: collapsed ? 42 : 70, 
               objectFit: collapsed ? 'cover' : 'contain', 
               objectPosition: 'left',
               transition: 'all 0.3s'

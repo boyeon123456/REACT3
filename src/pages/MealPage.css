@@ -27,7 +27,7 @@
 
 /* Calendar Container */
 .calendar-container {
-  background-color: #ffffff;
+  background-color: var(--bg-card);
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 0;
@@ -73,6 +73,42 @@
   color: #333;
 }
 
+.meal-date-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 30px 0;
+}
+
+.meal-date-btn {
+  border: 1px solid #d9e2f2;
+  background: #f8fbff;
+  color: #2157a5;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.meal-date-btn:hover {
+  background: #eef5ff;
+  border-color: #b9d1f4;
+  transform: translateY(-1px);
+}
+
+.meal-date-btn-today {
+  background: #2f80ed;
+  border-color: #2f80ed;
+  color: #fff;
+}
+
+.meal-date-btn-today:hover {
+  background: #1f6fd8;
+  border-color: #1f6fd8;
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -102,7 +138,7 @@
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
-  background-color: #fff;
+  background-color: var(--bg-card);
   color: #333;
 }
 
@@ -216,21 +252,24 @@
 }
 
 .modal-close-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
+  width: 40px;
+  height: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
   cursor: pointer;
-  padding: 8px;
   border-radius: 50%;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
 }
 
 .modal-close-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-main);
+  background: var(--bg-main);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .meal-modal-body {
@@ -307,6 +346,17 @@
     font-size: 20px;
   }
 
+  .meal-date-controls {
+    gap: 8px;
+    padding: 12px 16px 0;
+  }
+
+  .meal-date-btn {
+    flex: 1;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+
   .calendar-grid {
     gap: 4px; /* 모바일에서는 간격을 꽉 조여야 요일이 안 넘침 */
     padding: 12px;
@@ -331,5 +381,114 @@
     width: 5px;
     height: 5px;
     bottom: 4px;
+  }
+}
+
+@media (max-width: 430px) {
+  .meal-page {
+    padding: 16px 8px 24px;
+  }
+
+  .meal-header {
+    margin-bottom: 28px;
+  }
+
+  .meal-header h1 {
+    font-size: 24px;
+  }
+
+  .meal-header p {
+    font-size: 13px;
+  }
+
+  .calendar-container {
+    border-radius: 16px;
+    margin-bottom: 16px;
+  }
+
+  .calendar-header {
+    padding: 12px;
+  }
+
+  .cal-nav-btn {
+    padding: 8px;
+  }
+
+  .cal-title {
+    gap: 8px;
+    font-size: 17px;
+  }
+
+  .meal-date-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px 12px 0;
+  }
+
+  .meal-date-btn {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .calendar-grid {
+    gap: 3px;
+    padding: 10px;
+  }
+
+  .cal-weekday {
+    font-size: 12px;
+  }
+
+  .calendar-cell {
+    border-radius: 8px;
+  }
+
+  .day-number {
+    font-size: 14px;
+  }
+
+  .meal-modal-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .meal-modal-content {
+    width: 100%;
+    max-width: none;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .meal-modal-header {
+    padding: 16px;
+    align-items: flex-start;
+  }
+
+  .meal-modal-title {
+    font-size: 18px;
+    line-height: 1.35;
+    flex-wrap: wrap;
+  }
+
+  .modal-close-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .meal-modal-body {
+    padding: 18px 16px 20px;
+    gap: 16px;
+    max-height: min(72dvh, 560px);
+  }
+
+  .meal-type {
+    font-size: 16px;
+  }
+
+  .menu-text {
+    font-size: 14px;
+    padding: 14px;
+    line-height: 1.65;
   }
 }

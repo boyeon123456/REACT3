@@ -1,184 +1,181 @@
-// src/components/games/LadderGame.tsx
-import { useState, useRef, useEffect } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { formatDelta, formatPoints } from './arcadeShared';
+import { ArcadeChoiceButton, ArcadeChoiceGrid, ArcadeGameShell, ArcadePanel, ArcadeResetButton, ArcadeResultCard } from './arcadeUi';
 
 interface Props {
-    addPoints: (p: number) => void;
+  addPoints: (p: number) => void;
 }
 
 const COLS = 4;
 const ROWS = 8;
-const PRIZES = [-10, 20, 50, 100];
+const PRIZES = [-50, 80, 180, 420];
 
 function generateLadder() {
-    const rungs: boolean[][] = Array.from({ length: ROWS }, () =>
-        Array.from({ length: COLS - 1 }, () => false)
-    );
-    for (let r = 0; r < ROWS; r++) {
-        let c = 0;
-        while (c < COLS - 1) {
-            if (Math.random() > 0.55) {
-                rungs[r][c] = true;
-                c += 2;
-            } else {
-                c++;
-            }
-        }
+  const rungs: boolean[][] = Array.from({ length: ROWS }, () => Array.from({ length: COLS - 1 }, () => false));
+  for (let row = 0; row < ROWS; row += 1) {
+    let col = 0;
+    while (col < COLS - 1) {
+      if (Math.random() > 0.58) {
+        rungs[row][col] = true;
+        col += 2;
+      } else {
+        col += 1;
+      }
     }
-    return rungs;
+  }
+  return rungs;
 }
 
 function tracePath(start: number, rungs: boolean[][]): number[] {
-    const path: number[] = [start];
-    let col = start;
-    for (let r = 0; r < ROWS; r++) {
-        if (col > 0 && rungs[r][col - 1]) col--;
-        else if (col < COLS - 1 && rungs[r][col]) col++;
-        path.push(col);
-    }
-    return path;
+  const path = [start];
+  let col = start;
+  for (let row = 0; row < ROWS; row += 1) {
+    if (col > 0 && rungs[row][col - 1]) col -= 1;
+    else if (col < COLS - 1 && rungs[row][col]) col += 1;
+    path.push(col);
+  }
+  return path;
+}
+
+function createPrizeSet() {
+  return [...PRIZES].sort(() => Math.random() - 0.5);
 }
 
 export default function LadderGame({ addPoints }: Props) {
-    const [phase, setPhase] = useState<'pick' | 'animate' | 'result'>('pick');
-    const [rungs] = useState(() => generateLadder());
-    const [shuffledPrizes] = useState(() => [...PRIZES].sort(() => Math.random() - 0.5));
-    const [chosen, setChosen] = useState<number | null>(null);
-    const [path, setPath] = useState<number[]>([]);
-    const [animStep, setAnimStep] = useState(0);
-    const [finalCol, setFinalCol] = useState<number | null>(null);
-    const intervalRef = useRef<number | null>(null);
+  const [rungs, setRungs] = useState(generateLadder);
+  const [prizes, setPrizes] = useState(createPrizeSet);
+  const [phase, setPhase] = useState<'pick' | 'animate' | 'result'>('pick');
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [path, setPath] = useState<number[]>([]);
+  const [animStep, setAnimStep] = useState(0);
+  const [finalCol, setFinalCol] = useState<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
-    const start = (col: number) => {
-        const p = tracePath(col, rungs);
-        setChosen(col);
-        setPath(p);
-        setAnimStep(0);
-        setPhase('animate');
+  const width = 340;
+  const height = 300;
+  const colX = (col: number) => 36 + col * ((width - 72) / (COLS - 1));
+  const rowY = (row: number) => 24 + row * ((height - 48) / ROWS);
+  const result = finalCol === null ? 0 : prizes[finalCol];
+
+  const reset = () => {
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
+    setRungs(generateLadder());
+    setPrizes(createPrizeSet());
+    setPhase('pick');
+    setChosen(null);
+    setPath([]);
+    setAnimStep(0);
+    setFinalCol(null);
+  };
+
+  const start = (col: number) => {
+    const nextPath = tracePath(col, rungs);
+    setChosen(col);
+    setPath(nextPath);
+    setAnimStep(0);
+    setFinalCol(null);
+    setPhase('animate');
+  };
+
+  useEffect(() => {
+    if (phase !== 'animate') return undefined;
+
+    intervalRef.current = window.setInterval(() => {
+      setAnimStep((prev) => {
+        if (prev >= path.length - 1) {
+          if (intervalRef.current) window.clearInterval(intervalRef.current);
+          const nextFinalCol = path[path.length - 1];
+          setFinalCol(nextFinalCol);
+          addPoints(prizes[nextFinalCol]);
+          setPhase('result');
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 210);
+
+    return () => {
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
+  }, [addPoints, path, phase, prizes]);
 
-    useEffect(() => {
-        if (phase !== 'animate') return;
-        intervalRef.current = window.setInterval(() => {
-            setAnimStep(prev => {
-                if (prev >= path.length - 1) {
-                    clearInterval(intervalRef.current!);
-                    setFinalCol(path[path.length - 1]);
-                    setPhase('result');
-                    const prize = shuffledPrizes[path[path.length - 1]];
-                    addPoints(prize);
-                    return prev;
-                }
-                return prev + 1;
-            });
-        }, 250);
-        return () => clearInterval(intervalRef.current!);
-    }, [phase]);
+  return (
+    <ArcadeGameShell
+      title="사다리 타기"
+      subtitle="출발 번호를 고르면 경로를 따라 결과까지 내려갑니다."
+      stats={[
+        { label: '출발', value: chosen === null ? '-' : `${chosen + 1}번` },
+        { label: '최대 보상', value: formatPoints(420), tone: 'positive' },
+        { label: '상태', value: phase === 'pick' ? '선택 대기' : phase === 'animate' ? '이동 중' : '결과' },
+      ]}
+    >
+      <ArcadePanel>
+        <ArcadeChoiceGrid columns="four">
+          {Array.from({ length: COLS }).map((_, index) => (
+            <ArcadeChoiceButton key={index} onClick={() => start(index)} selected={chosen === index} disabled={phase !== 'pick'}>
+              <strong>{index + 1}번</strong>
+              <span>출발 선택</span>
+            </ArcadeChoiceButton>
+          ))}
+        </ArcadeChoiceGrid>
 
-    const reset = () => window.location.reload();
-
-    const W = 220, H = 260;
-    const colX = (c: number) => 20 + c * ((W - 40) / (COLS - 1));
-    const rowY = (r: number) => 20 + r * ((H - 40) / ROWS);
-
-    return (
-        <div className="game-play-area">
-            <div className="game-play-header"><h3>🪜 사다리타기</h3></div>
-
-            {/* 상단 선택지 */}
-            <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: 4 }}>
-                {Array.from({ length: COLS }).map((_, i) => (
-                    <button
-                        key={i}
-                        className={`coin-btn ${chosen === i ? 'selected' : ''}`}
-                        style={{ width: 44, padding: '6px 0', fontSize: 14 }}
-                        onClick={() => phase === 'pick' && start(i)}
-                        disabled={phase !== 'pick'}
-                    >
-                        {i + 1}번
-                    </button>
-                ))}
-            </div>
-
-            {/* SVG 사다리 */}
-            <svg width={W} height={H} style={{ display: 'block', margin: '0 auto' }}>
-                {/* 세로선 */}
-                {Array.from({ length: COLS }).map((_, c) => (
-                    <line key={c} x1={colX(c)} y1={rowY(0)} x2={colX(c)} y2={rowY(ROWS)}
-                        stroke="var(--text-secondary)" strokeWidth={2} />
-                ))}
-                {/* 가로 연결선 */}
-                {rungs.map((row, r) =>
-                    row.map((has, c) =>
-                        has ? (
-                            <line key={`${r}-${c}`}
-                                x1={colX(c)} y1={rowY(r) + (H - 40) / ROWS / 2}
-                                x2={colX(c + 1)} y2={rowY(r) + (H - 40) / ROWS / 2}
-                                stroke="var(--text-secondary)" strokeWidth={2} />
-                        ) : null
-                    )
-                )}
-                {/* 이동 경로 */}
-                {phase !== 'pick' && path.slice(0, animStep + 1).map((col, idx) => {
-                    if (idx === 0) return null;
-                    const prevCol = path[idx - 1];
-                    const r = idx - 1;
-                    const midY = rowY(r) + (H - 40) / ROWS / 2;
-                    return (
-                        <g key={idx}>
-                            {prevCol !== col ? (
-                                <>
-                                    <line x1={colX(prevCol)} y1={rowY(r)} x2={colX(prevCol)} y2={midY}
-                                        stroke="#FF9F43" strokeWidth={3} />
-                                    <line x1={colX(prevCol)} y1={midY} x2={colX(col)} y2={midY}
-                                        stroke="#FF9F43" strokeWidth={3} />
-                                    <line x1={colX(col)} y1={midY} x2={colX(col)} y2={rowY(r + 1)}
-                                        stroke="#FF9F43" strokeWidth={3} />
-                                </>
-                            ) : (
-                                <line x1={colX(col)} y1={rowY(r)} x2={colX(col)} y2={rowY(r + 1)}
-                                    stroke="#FF9F43" strokeWidth={3} />
-                            )}
-                        </g>
-                    );
-                })}
-                {/* 공 */}
-                {phase !== 'pick' && (
-                    <circle
-                        cx={colX(path[Math.min(animStep, path.length - 1)])}
-                        cy={rowY(Math.min(animStep, ROWS))}
-                        r={6} fill="#FF9F43" />
-                )}
-            </svg>
-
-            {/* 하단 결과 */}
-            <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 4 }}>
-                {shuffledPrizes.map((p, i) => (
-                    <div key={i} style={{
-                        width: 44, textAlign: 'center', padding: '4px 0',
-                        borderRadius: 8, fontSize: 12, fontWeight: 700,
-                        background: finalCol === i ? '#FF9F4320' : 'var(--bg-secondary)',
-                        border: finalCol === i ? '2px solid #FF9F43' : '2px solid transparent',
-                        color: p < 0 ? '#E74C3C' : '#27AE60'
-                    }}>
-                        {p > 0 ? `+${p}P` : `${p}P`}
-                    </div>
-                ))}
-            </div>
-
-            {phase === 'result' && finalCol !== null && (
-                <div className="fortune-result" style={{ marginTop: 16 }}>
-                    <p className="fortune-text">
-                        {shuffledPrizes[finalCol] > 0 ? '🎉 행운이에요!' : '😢 아쉽네요...'}
-                    </p>
-                    <p className="fortune-points">
-                        {shuffledPrizes[finalCol] > 0
-                            ? `+${shuffledPrizes[finalCol]}P 획득!`
-                            : `${shuffledPrizes[finalCol]}P`}
-                    </p>
-                    <button className="game-retry-btn" onClick={reset}><RotateCcw size={16} /> 다시하기</button>
-                </div>
+        <div className="modern-ladder-wrap">
+          <svg className="modern-ladder-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="사다리 경로">
+            {Array.from({ length: COLS }).map((_, col) => (
+              <line key={col} x1={colX(col)} y1={rowY(0)} x2={colX(col)} y2={rowY(ROWS)} stroke="#94a3b8" strokeWidth={3} strokeLinecap="round" />
+            ))}
+            {rungs.map((row, rowIndex) =>
+              row.map((hasRung, col) =>
+                hasRung ? (
+                  <line
+                    key={`${rowIndex}-${col}`}
+                    x1={colX(col)}
+                    y1={rowY(rowIndex) + (height - 48) / ROWS / 2}
+                    x2={colX(col + 1)}
+                    y2={rowY(rowIndex) + (height - 48) / ROWS / 2}
+                    stroke="#94a3b8"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  />
+                ) : null
+              )
             )}
+            {phase !== 'pick' &&
+              path.slice(0, animStep + 1).map((col, index) => {
+                if (index === 0) return null;
+                const prevCol = path[index - 1];
+                const row = index - 1;
+                const midY = rowY(row) + (height - 48) / ROWS / 2;
+                return prevCol !== col ? (
+                  <g key={index}>
+                    <line x1={colX(prevCol)} y1={rowY(row)} x2={colX(prevCol)} y2={midY} stroke="#2563eb" strokeWidth={5} strokeLinecap="round" />
+                    <line x1={colX(prevCol)} y1={midY} x2={colX(col)} y2={midY} stroke="#2563eb" strokeWidth={5} strokeLinecap="round" />
+                    <line x1={colX(col)} y1={midY} x2={colX(col)} y2={rowY(row + 1)} stroke="#2563eb" strokeWidth={5} strokeLinecap="round" />
+                  </g>
+                ) : (
+                  <line key={index} x1={colX(col)} y1={rowY(row)} x2={colX(col)} y2={rowY(row + 1)} stroke="#2563eb" strokeWidth={5} strokeLinecap="round" />
+                );
+              })}
+            {phase !== 'pick' && <circle cx={colX(path[Math.min(animStep, path.length - 1)])} cy={rowY(Math.min(animStep, ROWS))} r={8} fill="#2563eb" />}
+          </svg>
         </div>
-    );
+
+        <ArcadeChoiceGrid columns="four">
+          {prizes.map((prize, index) => (
+            <ArcadeChoiceButton key={`${prize}-${index}`} selected={finalCol === index} tone={prize > 0 ? 'positive' : 'negative'} disabled>
+              <strong>{formatDelta(prize)}</strong>
+              <span>도착 {index + 1}</span>
+            </ArcadeChoiceButton>
+          ))}
+        </ArcadeChoiceGrid>
+      </ArcadePanel>
+
+      {phase === 'result' && (
+        <>
+          <ArcadeResultCard title={result > 0 ? '좋은 도착지' : '아쉬운 도착지'} delta={result} message="새 판을 시작하면 사다리와 보상이 다시 섞입니다." />
+          <ArcadeResetButton onClick={reset} />
+        </>
+      )}
+    </ArcadeGameShell>
+  );
 }

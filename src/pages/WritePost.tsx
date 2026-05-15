@@ -1,36 +1,64 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ToggleLeft, ToggleRight, Image, PenLine, Hash, AlertTriangle, X, Loader2, Edit3, AlertOctagon } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import {
+  AlertOctagon,
+  AlertTriangle,
+  Hash,
+  Image,
+  Loader2,
+  Lock,
+  PenLine,
+  Send,
+  User,
+  UserRoundX,
+  X,
+} from 'lucide-react';
+import { collection, deleteField, doc, getDoc, increment, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { collection, addDoc, doc, getDoc, updateDoc, increment, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useAuthStore } from '../store/authStore';
+import {
+  BOARD_BY_KEY,
+  BOARD_OPTIONS,
+  boardScopeToLegacyPublic,
+  getBoardOption,
+  normalizePost,
+  type BoardKey,
+} from '../constants/boardUi';
+import { resolveStorageSrc } from '../lib/storageAsset';
 import './WritePost.css';
+
+const MAX_TITLE = 100;
+const MAX_CONTENT = 5000;
+const MAX_TAGS = 5;
 
 export default function WritePost() {
   const navigate = useNavigate();
-  const { id: editId } = useParams<{ id?: string }>();   // edit/:id 라우트
-  const isEditMode = !!editId;
+  const { id: editId } = useParams<{ id?: string }>();
+  const isEditMode = Boolean(editId);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const user = useAuthStore(state => state.user);
+  const user = useAuthStore((state) => state.user);
 
-  const [isAnon, setIsAnon] = useState(true);
+  const [boardKey, setBoardKey] = useState<BoardKey>('free');
+  const [anonymous, setAnonymous] = useState(true);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('자유게시판');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-
-  // Image Upload States
+  const [existingImagePath, setExistingImagePath] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEditMode);
 
-  // 수정 모드: 기존 게시글 데이터 불러오기
+  const selectedBoard = BOARD_BY_KEY[boardKey];
+  const isSchoolBoard = selectedBoard.scope === 'school';
+  const canUseSelectedBoard = !isSchoolBoard || Boolean(user?.schoolCode);
+  const canSubmit = Boolean(title.trim() && content.trim() && user && !user.isBanned && canUseSelectedBoard && !isUploading);
+
   useEffect(() => {
     if (!isEditMode || !editId) return;
+
     const fetchPost = async () => {
       try {
         const snap = await getDoc(doc(db, 'posts', editId));
@@ -39,147 +67,178 @@ export default function WritePost() {
           navigate('/board');
           return;
         }
-        const data = snap.data();
-        // 작성자 본인 또는 관리자인지 확인
-        if (user && data.author_id !== user.id && user.role !== 'admin') {
+
+        const normalized = normalizePost(snap.id, snap.data());
+        let ownerId = normalized.authorId;
+        try {
+          const ownerSnap = await getDoc(doc(db, 'post_owners', editId));
+          ownerId = ownerSnap.exists() ? ownerSnap.data().ownerId : normalized.authorId;
+        } catch {
+          ownerId = normalized.authorId;
+        }
+        if (user && ownerId !== user.id && user.role !== 'admin') {
           alert('수정 권한이 없습니다.');
           navigate(`/post/${editId}`);
           return;
         }
-        setTitle(data.title || '');
-        setContent(data.content || '');
-        setCategory(data.board || '자유게시판');
-        setTags(data.tags || []);
-        setIsAnon(data.author === '익명');
-        if (data.imageUrl) {
-          setExistingImageUrl(data.imageUrl);
-          setImagePreview(data.imageUrl);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('게시글 불러오기에 실패했습니다.');
+
+        setTitle(normalized.title);
+        setContent(normalized.content);
+        setBoardKey(normalized.boardKey);
+        setAnonymous(normalized.anonymous);
+        setTags(normalized.tags);
+        setExistingImagePath(normalized.imageUrl || null);
+        setImagePreview(await resolveStorageSrc(normalized.imageUrl || null));
+      } catch (error) {
+        console.error(error);
+        alert('게시글을 불러오지 못했습니다.');
         navigate('/board');
       } finally {
         setLoadingEdit(false);
       }
     };
-    fetchPost();
-  }, [editId, isEditMode]);
 
-  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = tagInput.trim().replace(/^#/, '');
-      if (val && tags.length < 5 && !tags.includes(val)) {
-        setTags([...tags, val]);
-      }
+    void fetchPost();
+  }, [editId, isEditMode, navigate, user]);
+
+  const boardChoices = useMemo(
+    () =>
+      BOARD_OPTIONS.map((option) => ({
+        ...option,
+        disabled: option.scope === 'school' && !user?.schoolCode,
+      })),
+    [user?.schoolCode]
+  );
+
+  const handleTagKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' && event.key !== ',') return;
+    event.preventDefault();
+    const value = tagInput.trim().replace(/^#/, '');
+    if (!value || tags.includes(value) || tags.length >= MAX_TAGS) {
       setTagInput('');
+      return;
     }
+    setTags((prev) => [...prev, value]);
+    setTagInput('');
   };
 
   const removeTag = (index: number) => {
-    setTags(tags.filter((_, i) => i !== index));
+    setTags((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const charCount = content.length;
-  const maxChars = 5000;
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('파일 크기는 5MB를 초과할 수 없습니다.');
-        return;
-      }
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setExistingImageUrl(null); // 새 이미지로 교체
+    if (file.size > 5 * 1024 * 1024) {
+      alert('이미지는 5MB 이하만 업로드할 수 있습니다.');
+      return;
     }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setExistingImagePath(null);
   };
 
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    setExistingImageUrl(null);
+    setExistingImagePath(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async () => {
-    if (!title || !content) return;
     if (!user) {
-      alert('로그인 후 이용 가능합니다.');
+      alert('로그인이 필요합니다.');
       navigate('/login');
+      return;
+    }
+    if (user.isBanned) return;
+    if (!title.trim() || !content.trim()) return;
+    if (!canUseSelectedBoard) {
+      alert('학교 정보를 등록해야 사용할 수 있는 게시판입니다.');
       return;
     }
 
     setIsUploading(true);
 
     try {
-      let imageUrl: string | null = existingImageUrl;
-
-      // 새 이미지가 있으면 업로드
+      let imagePath = existingImagePath;
       if (imageFile) {
-        const fileRef = ref(storage, `posts/${Date.now()}_${imageFile.name}`);
-        const uploadResult = await uploadBytes(fileRef, imageFile);
-        imageUrl = await getDownloadURL(uploadResult.ref);
+        imagePath = `posts/${Date.now()}_${imageFile.name}`;
+        await uploadBytes(ref(storage, imagePath), imageFile);
       }
 
+      const board = getBoardOption(boardKey);
+      const authorDisplayName = anonymous ? '익명' : user.name;
+      const basePost = {
+        title: title.trim(),
+        content: content.trim(),
+        boardKey,
+        board: board.label,
+        scope: board.scope,
+        isPublic: boardScopeToLegacyPublic(board.scope),
+        anonymous,
+        author: authorDisplayName,
+        authorDisplayName,
+        author_id: anonymous ? null : user.id,
+        authorEquipped: anonymous ? {} : user.equipped_items || {},
+        schoolCode: board.scope === 'school' ? user.schoolCode || null : null,
+        imagePath: imagePath || null,
+        tags,
+      };
+
       if (isEditMode && editId) {
-        // ── 수정 모드 ──
         await updateDoc(doc(db, 'posts', editId), {
-          title,
-          content,
-          board: category,
-          tags,
-          imageUrl,
+          ...basePost,
+          schoolName: deleteField(),
+          imageUrl: deleteField(),
           updated_at: Date.now(),
         });
-        alert('게시글이 수정되었습니다!');
+        alert('게시글을 수정했습니다.');
         navigate(`/post/${editId}`);
       } else {
-        // ── 작성 모드 ──
-        const authorName = isAnon ? '익명' : user.name;
-        const isPublic = !['1학년', '2학년', '3학년', '학생회'].includes(category);
+        const postRef = doc(collection(db, 'posts'));
+        const batch = writeBatch(db);
+        const createdAt = Date.now();
 
-        await addDoc(collection(db, 'posts'), {
-          title,
-          content,
-          board: category,
-          author: authorName,
-          author_id: user.id,
-          authorEquipped: user.equipped_items || {},
-          schoolCode: user.schoolCode || null,
-          schoolName: user.schoolName || null,
-          isPublic, // 학교 전용 여부
-          imageUrl,
-          tags,
+        batch.set(postRef, {
+          ...basePost,
           likes: 0,
           views: 0,
           comments: 0,
-          created_at: Date.now()
+          bookmarks: 0,
+          isPinned: false,
+          created_at: createdAt,
         });
+        batch.set(doc(db, 'post_owners', postRef.id), {
+          ownerId: user.id,
+          createdAt,
+        });
+        await batch.commit();
 
-        // 포인트 +10 증가
         if (user.role !== 'admin') {
           await updateDoc(doc(db, 'users', user.id), { points: increment(10) });
         }
 
-        // 학교 활동 점수 업데이트
         if (user.schoolCode) {
-          const schoolRef = doc(db, 'school_stats', user.schoolCode);
-          await setDoc(schoolRef, {
-            schoolName: user.schoolName,
-            points: increment(10),
-            postCount: increment(1),
-            lastActive: Date.now()
-          }, { merge: true });
+          await setDoc(
+            doc(db, 'school_stats', user.schoolCode),
+            {
+              schoolName: user.schoolName,
+              points: increment(10),
+              postCount: increment(1),
+              lastActive: Date.now(),
+            },
+            { merge: true }
+          );
         }
 
-        alert('게시글이 등록되었습니다!');
+        alert('게시글을 등록했습니다.');
         navigate('/board');
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert(isEditMode ? '게시글 수정에 실패했습니다.' : '게시글 등록에 실패했습니다.');
     } finally {
       setIsUploading(false);
@@ -188,104 +247,119 @@ export default function WritePost() {
 
   if (loadingEdit) {
     return (
-      <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', margin: '0 auto' }} />
-        <p style={{ marginTop: '16px' }}>게시글 불러오는 중...</p>
+      <div className="write-loading">
+        <Loader2 size={32} />
+        <p>게시글을 불러오는 중입니다.</p>
       </div>
     );
   }
 
   return (
     <div className="write-page animate-fade-in">
-      <div className="board-header">
-        <h1 className="page-title">
-          {isEditMode ? <><Edit3 size={28} style={{ verticalAlign: 'middle', marginRight: '8px' }} />게시글 수정</> : '글쓰기'}
-        </h1>
-        <p className="page-desc">
-          {isEditMode ? '게시글 내용을 수정합니다.' : '새로운 소식을 다같이 공유해보세요.'}
-        </p>
-      </div>
+      <header className="write-header">
+        <div>
+          <p>{isEditMode ? 'Edit Post' : 'New Post'}</p>
+          <h1>{isEditMode ? '게시글 수정' : '새 글 작성'}</h1>
+        </div>
+        <button type="button" onClick={() => navigate(-1)}>
+          취소
+        </button>
+      </header>
 
-      <div className="write-form-container">
-        <div className="form-group row-group">
-          <div className="category-select-wrap">
-            <Hash size={16} className="select-icon" />
-            <select className="input-field category-select" value={category} onChange={e => setCategory(e.target.value)}>
-              <option>자유게시판</option>
-              <option>1학년</option>
-              <option>2학년</option>
-              <option>3학년</option>
-              <option>학생회</option>
-              <option>공지사항</option>
-            </select>
-          </div>
-          {['1학년', '2학년', '3학년', '학생회'].includes(category) && (
-            <div className="school-private-badge animate-scale-in" style={{
-              fontSize: '12px', background: 'var(--primary-light)', color: 'var(--primary)',
-              padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px',
-              fontWeight: '700', border: '1px solid var(--primary)'
-            }}>
-              <AlertOctagon size={14} /> 이 글은 우리 학교 학생들에게만 공개됩니다 🔒
-            </div>
-          )}
-          {!isEditMode && (
-            <div className="anon-toggle" onClick={() => setIsAnon(!isAnon)}>
-              {isAnon ? <ToggleRight size={28} className="text-primary" /> : <ToggleLeft size={28} />}
-              <span className={isAnon ? 'anon-label active' : 'anon-label'}>익명</span>
-            </div>
-          )}
+      <section className="write-panel">
+        <div className="write-intro-card">
+          <strong>{isEditMode ? '내용을 더 읽기 좋게 다듬어 보세요.' : '가독성 좋은 글은 더 많은 반응을 만듭니다.'}</strong>
+          <p>제목은 분명하게, 본문은 짧은 문단으로 나누고 필요한 태그만 2~3개 정도 붙이는 구성이 가장 좋아요.</p>
         </div>
 
-        <div className="form-group">
+        <div className="board-picker" aria-label="게시판 선택">
+          {boardChoices.map((option) => (
+            <button
+              type="button"
+              key={option.key}
+              disabled={option.disabled || isUploading}
+              className={boardKey === option.key ? 'active' : ''}
+              onClick={() => setBoardKey(option.key)}
+            >
+              <strong>{option.label}</strong>
+              <span>{option.description}</span>
+              {option.scope === 'school' && <Lock size={14} />}
+            </button>
+          ))}
+        </div>
+
+        {!canUseSelectedBoard && (
+          <div className="write-alert">
+            <AlertOctagon size={17} />
+            학교 게시판은 마이페이지에서 학교 정보를 등록한 뒤 사용할 수 있습니다.
+          </div>
+        )}
+
+        {user?.isBanned && (
+          <div className="write-alert danger">
+            <AlertOctagon size={17} />
+            제재 상태에서는 게시글을 작성할 수 없습니다.
+          </div>
+        )}
+
+        <div className="identity-toggle" aria-label="작성자 표시">
+          <button type="button" className={anonymous ? 'active' : ''} onClick={() => setAnonymous(true)} disabled={isUploading}>
+            <UserRoundX size={17} />
+            익명
+          </button>
+          <button type="button" className={!anonymous ? 'active' : ''} onClick={() => setAnonymous(false)} disabled={isUploading}>
+            <User size={17} />
+            실명
+          </button>
+        </div>
+
+        <label className="write-field title-field">
           <input
             type="text"
-            className="input-field title-input"
-            placeholder="제목을 입력하세요"
             value={title}
-            onChange={e => setTitle(e.target.value)}
-            maxLength={100}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={MAX_TITLE}
+            placeholder="제목을 입력해 주세요"
             disabled={isUploading}
           />
-          <span className="char-hint">{title.length}/100</span>
-        </div>
+          <span>{title.length}/{MAX_TITLE}</span>
+        </label>
 
-        <div className="form-group">
+        <label className="write-field content-field">
           <textarea
-            className="input-field content-textarea"
-            placeholder={"내용을 입력하세요.\n\n욕설, 비방, 개인정보 노출은 제재 대상이 될 수 있습니다."}
             value={content}
-            onChange={e => setContent(e.target.value)}
-            maxLength={maxChars}
+            onChange={(event) => setContent(event.target.value)}
+            maxLength={MAX_CONTENT}
+            placeholder="내용을 입력해 주세요"
             disabled={isUploading}
-          ></textarea>
-          <div className="textarea-footer">
-            <div className="content-warning">
+          />
+          <div className="write-helper-row">
+            <span>
               <AlertTriangle size={14} />
-              <span>커뮤니티 이용규칙을 준수해주세요.</span>
-            </div>
-            <span className={`char-count ${charCount > maxChars * 0.9 ? 'warn' : ''}`}>{charCount.toLocaleString()}/{maxChars.toLocaleString()}</span>
+              개인정보 노출, 비방, 혐오 표현은 제재될 수 있습니다.
+            </span>
+            <strong>{content.length.toLocaleString()}/{MAX_CONTENT.toLocaleString()}</strong>
           </div>
-        </div>
+        </label>
 
-        <div className="form-group tag-input-group">
-          <div className="tag-input-wrap">
-            <Hash size={16} className="tag-icon" />
+        <div className="tag-editor">
+          <label>
+            <Hash size={16} />
             <input
               type="text"
-              className="input-field tag-input"
-              placeholder="태그를 입력하고 엔터를 누르세요 (최대 5개)"
               value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
+              onChange={(event) => setTagInput(event.target.value)}
               onKeyDown={handleTagKeyDown}
-              disabled={tags.length >= 5 || isUploading}
+              placeholder="태그 입력 후 Enter"
+              disabled={tags.length >= MAX_TAGS || isUploading}
             />
-          </div>
+          </label>
           {tags.length > 0 && (
-            <div className="tags-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-              {tags.map((tag, idx) => (
-                <span key={idx} className="tag-chip" style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--primary-light)', padding: '4px 10px', borderRadius: '14px', fontSize: '13px', color: '#fff' }}>
+            <div className="tag-list">
+              {tags.map((tag, index) => (
+                <span key={tag}>
                   #{tag}
-                  <button onClick={() => removeTag(idx)} style={{ display: 'flex', marginLeft: '6px', color: '#fff', cursor: 'pointer' }}>
+                  <button type="button" onClick={() => removeTag(index)} disabled={isUploading}>
                     <X size={12} />
                   </button>
                 </span>
@@ -294,57 +368,29 @@ export default function WritePost() {
           )}
         </div>
 
-        {/* 이미지 미리보기 구역 */}
         {imagePreview && (
           <div className="image-preview-container">
-            <div className="preview-wrapper">
-              <img src={imagePreview} alt="Preview" />
-              <button className="remove-preview" onClick={removeImage}>
-                <X size={16} />
-              </button>
-            </div>
+            <img src={imagePreview} alt="첨부 이미지 미리보기" />
+            <button type="button" onClick={removeImage} disabled={isUploading}>
+              <X size={16} />
+            </button>
           </div>
         )}
 
-        {user?.isBanned && (
-          <div style={{ backgroundColor: '#fff1f2', color: '#f43f5e', padding: '12px 16px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, marginBottom: '16px', border: '1px solid rgba(244,63,94,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertOctagon size={18} /> 활동이 정지된 상태입니다. 게시글을 작성할 수 없습니다.
-          </div>
-        )}
-
-        <div className="write-actions-bar">
-          <div className="media-actions">
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={handleImageChange}
-            />
-            <button
-              className={`media-btn ${imageFile || existingImageUrl ? 'has-file' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              <Image size={18} /> {imageFile ? '이미지 변경' : existingImageUrl ? '이미지 교체' : '이미지 추가'}
+        <footer className="write-actions-bar">
+          <div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
+            <button type="button" className="media-btn" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+              <Image size={18} />
+              {imagePreview ? '이미지 변경' : '이미지 추가'}
             </button>
           </div>
-          <div className="submit-actions">
-            <button className="cancel-btn" onClick={() => navigate(-1)} disabled={isUploading}>취소</button>
-            <button
-              className={`submit-btn ${title && content && !isUploading ? 'ready' : ''}`}
-              onClick={handleSubmit}
-              disabled={isUploading || !title || !content}
-            >
-              {isUploading ? (
-                <><Loader2 size={18} className="animate-spin" /> {isEditMode ? '저장 중...' : '업로드 중...'}</>
-              ) : (
-                <>{isEditMode ? <><Edit3 size={18} /> 수정 완료</> : <><PenLine size={18} /> 등록하기</>}</>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+          <button type="button" className="submit-btn" onClick={handleSubmit} disabled={!canSubmit}>
+            {isUploading ? <Loader2 size={18} className="spin" /> : isEditMode ? <PenLine size={18} /> : <Send size={18} />}
+            {isUploading ? '업로드 중' : isEditMode ? '수정 완료' : '등록'}
+          </button>
+        </footer>
+      </section>
     </div>
   );
 }

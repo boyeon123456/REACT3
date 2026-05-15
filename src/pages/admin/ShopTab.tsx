@@ -1,283 +1,346 @@
-import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  deleteDoc,
-  doc,
-} from 'firebase/firestore';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Palette, PencilLine, Plus, Ticket, Trash2 } from 'lucide-react';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore';
+import { useSearchParams } from 'react-router-dom';
 import { db } from '../../firebase';
+import { DEFAULT_SHOP_ITEMS } from '../../constants/defaultShopItems';
 import { logAdminAction } from '../../lib/adminAudit';
+import { isAdminUser } from '../../lib/isAdmin';
 import { useAuthStore } from '../../store/authStore';
+import type { AdminNotify } from '../../hooks/useAdminToast';
+import type { AdminShopItem } from '../../types/admin';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
-export default function ShopTab() {
+type Props = {
+  onNotify?: AdminNotify;
+};
+
+type ShopFormState = {
+  name: string;
+  description: string;
+  price: number;
+  type: 'badge' | 'nameColor' | 'profileBg' | 'avatarFrame';
+  style: string;
+};
+
+const initialForm: ShopFormState = {
+  name: '',
+  description: '',
+  price: 1000,
+  type: 'badge',
+  style: '',
+};
+
+function getPreviewStyle(type: ShopFormState['type'], style: string) {
+  if (type === 'profileBg') return { background: style || 'linear-gradient(135deg, #6c5ce7, #4da3ff)' };
+  if (type === 'avatarFrame') return { borderColor: style || '#f59e0b' };
+  return {};
+}
+
+export default function ShopTab({ onNotify }: Props) {
   const { user } = useAuthStore();
-  const [shopItems, setShopItems] = useState<{ id: string; name?: string; description?: string; price?: number; type?: string; style?: string }[]>([]);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemDesc, setNewItemDesc] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState(1000);
-  const [newItemType, setNewItemType] = useState<
-    'badge' | 'nameColor' | 'profileBg' | 'avatarFrame'
-  >('badge');
-  const [newItemStyle, setNewItemStyle] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [shopItems, setShopItems] = useState<AdminShopItem[]>([]);
+  const [draft, setDraft] = useState<ShopFormState>(initialForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [shopSaving, setShopSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AdminShopItem | null>(null);
+  const seedAttemptedRef = useRef(false);
 
   useEffect(() => {
     const q = query(collection(db, 'shop_items'), orderBy('price', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
-      setShopItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setShopItems(
+        snap.docs.map((entry) => ({
+          id: entry.id,
+          ...(entry.data() as Omit<AdminShopItem, 'id'>),
+        }))
+      );
+
+      if (!snap.empty || seedAttemptedRef.current || !isAdminUser(user)) {
+        return;
+      }
+
+      seedAttemptedRef.current = true;
+      void (async () => {
+        try {
+          const batch = writeBatch(db);
+          const createdAt = Date.now();
+
+          DEFAULT_SHOP_ITEMS.forEach((item) => {
+            batch.set(doc(db, 'shop_items', item.id), {
+              name: item.name,
+              description: item.description,
+              price: item.price,
+              type: item.type,
+              style: item.style,
+              createdAt,
+            });
+          });
+
+          await batch.commit();
+          await logAdminAction(user, 'shop.seed_defaults', {
+            targetCollection: 'shop_items',
+            detail: { itemIds: DEFAULT_SHOP_ITEMS.map((item) => item.id), count: DEFAULT_SHOP_ITEMS.length },
+          });
+          onNotify?.('기본 상점 아이템이 생성되었습니다.');
+        } catch (error) {
+          seedAttemptedRef.current = false;
+          console.error('Error seeding default shop items:', error);
+          onNotify?.('기본 상점 아이템 생성에 실패했습니다.', 'error');
+        }
+      })();
     });
     return () => unsub();
-  }, []);
+  }, [onNotify, user]);
 
-  const handleCreateShopItem = async () => {
-    if (!newItemName.trim() || newItemPrice === undefined || newItemPrice === null) return;
+  useEffect(() => {
+    if (searchParams.get('focus') === 'shop-new') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('focus');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const previewStyle = useMemo(() => getPreviewStyle(draft.type, draft.style), [draft.style, draft.type]);
+
+  const resetForm = () => {
+    setDraft(initialForm);
+    setEditingId(null);
+  };
+
+  const validateForm = () => {
+    if (!draft.name.trim()) return '상품 이름을 입력해 주세요.';
+    if (draft.price <= 0) return '가격은 0보다 커야 합니다.';
+    if (!draft.description.trim()) return '상품 설명을 입력해 주세요.';
+    if ((draft.type === 'nameColor' || draft.type === 'avatarFrame') && !draft.style.trim()) {
+      return '선택한 타입에는 스타일 값이 필요합니다.';
+    }
+    return null;
+  };
+
+  const handleSave = async () => {
+    const error = validateForm();
+    if (error) {
+      onNotify?.(error, 'error');
+      return;
+    }
+
     setShopSaving(true);
     try {
-      const ref = await addDoc(collection(db, 'shop_items'), {
-        name: newItemName,
-        description: newItemDesc,
-        price: newItemPrice,
-        type: newItemType,
-        style: newItemStyle,
+      const payload = {
+        name: draft.name.trim(),
+        description: draft.description.trim(),
+        price: Number(draft.price),
+        type: draft.type,
+        style: draft.style.trim(),
         createdAt: Date.now(),
-      });
-      await logAdminAction(user, 'shop.item_create', {
-        targetCollection: 'shop_items',
-        targetId: ref.id,
-        detail: { name: newItemName, price: newItemPrice, type: newItemType },
-      });
-      setNewItemName('');
-      setNewItemDesc('');
-      setNewItemPrice(1000);
-      alert('아이템이 등록되었습니다.');
-    } catch (e: unknown) {
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'shop_items', editingId), payload);
+        await logAdminAction(user, 'shop.item_update', {
+          targetCollection: 'shop_items',
+          targetId: editingId,
+          detail: payload,
+        });
+        onNotify?.('상품을 수정했습니다.');
+      } else {
+        const ref = await addDoc(collection(db, 'shop_items'), payload);
+        await logAdminAction(user, 'shop.item_create', {
+          targetCollection: 'shop_items',
+          targetId: ref.id,
+          detail: payload,
+        });
+        onNotify?.('상품을 추가했습니다.');
+      }
+      resetForm();
+    } catch (e) {
       console.error(e);
-      const msg = e instanceof Error ? e.message : String(e);
-      alert('아이템 등록 실패: ' + msg);
+      onNotify?.('상품 저장에 실패했습니다.', 'error');
     } finally {
       setShopSaving(false);
     }
   };
 
-  const handleDeleteShopItem = async (id: string) => {
-    if (!window.confirm('이 상품을 상점에서 삭제할까요?')) return;
-    try {
-      await deleteDoc(doc(db, 'shop_items', id));
-      await logAdminAction(user, 'shop.item_delete', {
-        targetCollection: 'shop_items',
-        targetId: id,
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   return (
     <div className="admin-content">
-      <div
-        style={{
-          background: 'var(--bg-main)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-light)',
-          marginBottom: '32px',
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          try {
+            await deleteDoc(doc(db, 'shop_items', deleteTarget.id));
+            await logAdminAction(user, 'shop.item_delete', {
+              targetCollection: 'shop_items',
+              targetId: deleteTarget.id,
+            });
+            onNotify?.('상품을 삭제했습니다.');
+          } catch (e) {
+            console.error(e);
+            onNotify?.('상품 삭제에 실패했습니다.', 'error');
+          }
         }}
-      >
-        <h3 className="section-title" style={{ marginBottom: '20px' }}>
-          🎁 새 상품 등록
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div className="input-field">
-            <label
-              style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}
-            >
-              아이템 이름
-            </label>
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="예: [Gold] 칭호"
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-              }}
-            />
-          </div>
-          <div className="input-field">
-            <label
-              style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}
-            >
-              가격 (Points)
-            </label>
-            <input
-              type="number"
-              value={newItemPrice}
-              onChange={(e) => setNewItemPrice(Number(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-              }}
-            />
-          </div>
-          <div className="input-field">
-            <label
-              style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}
-            >
-              아이템 종류
-            </label>
-            <select
-              value={newItemType}
-              onChange={(e) =>
-                setNewItemType(e.target.value as 'badge' | 'nameColor' | 'profileBg' | 'avatarFrame')
-              }
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-              }}
-            >
-              <option value="badge">칭호 (Badge)</option>
-              <option value="nameColor">이름 색상 (Color)</option>
-              <option value="profileBg">프로필 배경 (Background)</option>
-              <option value="avatarFrame">아바타 테두리 (Frame)</option>
-            </select>
-          </div>
-          <div className="input-field">
-            <label
-              style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}
-            >
-              스타일 (Color Hex / Gradient)
-            </label>
-            <input
-              type="text"
-              value={newItemStyle}
-              onChange={(e) => setNewItemStyle(e.target.value)}
-              placeholder="예: #FFD700 또는 linear-gradient(...)"
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-              }}
-            />
-          </div>
-          <div className="input-field" style={{ gridColumn: 'span 2' }}>
-            <label
-              style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}
-            >
-              상품 설명
-            </label>
-            <textarea
-              value={newItemDesc}
-              onChange={(e) => setNewItemDesc(e.target.value)}
-              placeholder="아이템에 대한 설명을 간단히 입력하세요."
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-                minHeight: '80px',
-              }}
-            />
-          </div>
+        title="상품 삭제"
+        message="선택한 상품을 상점에서 삭제합니다. 이 작업은 되돌릴 수 없습니다."
+        confirmText="삭제"
+        type="danger"
+      />
+
+      <div className="table-header-actions">
+        <div>
+          <h3 className="section-title">상점 상품 관리</h3>
+          <p className="admin-section-description">배지, 이름색, 프로필 배경, 아바타 프레임 상품을 관리합니다.</p>
         </div>
-        <button
-          type="button"
-          onClick={handleCreateShopItem}
-          disabled={shopSaving}
-          className="admin-btn approve"
-          style={{ marginTop: '20px', width: '100%', padding: '14px', fontSize: '16px' }}
-        >
-          {shopSaving ? '등록 중...' : '상품 출시하기'}
-        </button>
       </div>
 
-      <h3 className="section-title" style={{ marginBottom: '16px' }}>
-        현재 판매 중인 목록 ({shopItems.length})
-      </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-        {shopItems.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              padding: '20px',
-              borderRadius: '16px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-light)',
-              position: 'relative',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--primary)',
-                fontWeight: 800,
-                marginBottom: '4px',
-              }}
-            >
-              {item.type?.toUpperCase()}
-            </div>
-            <div
-              style={{
-                fontSize: '18px',
-                fontWeight: 800,
-                marginBottom: '8px',
-                color: item.type === 'nameColor' ? item.style : 'var(--text-main)',
-              }}
-            >
-              {item.name}
-            </div>
-            <div
-              style={{
-                fontSize: '13px',
-                color: 'var(--text-muted)',
-                marginBottom: '16px',
-                minHeight: '32px',
-              }}
-            >
-              {item.description}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800, color: '#f59e0b' }}>
-                💎 {item.price?.toLocaleString()} P
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDeleteShopItem(item.id)}
-                style={{
-                  padding: '6px',
-                  color: '#FF4757',
-                  background: 'rgba(255,71,87,0.05)',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+      <div className="admin-split-grid">
+        <div className="admin-panel">
+          <div className="admin-panel-header">
+            <span>{editingId ? '상품 수정' : '새 상품 등록'}</span>
+          </div>
+          <div className="admin-form-grid">
+            <label className="admin-field">
+              <span>상품 이름</span>
+              <input value={draft.name} onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))} />
+            </label>
+            <label className="admin-field">
+              <span>가격</span>
+              <input
+                type="number"
+                value={draft.price}
+                onChange={(e) => setDraft((prev) => ({ ...prev, price: Number(e.target.value) }))}
+              />
+            </label>
+            <label className="admin-field">
+              <span>타입</span>
+              <select
+                value={draft.type}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    type: e.target.value as ShopFormState['type'],
+                  }))
+                }
               >
-                <Trash2 size={18} />
-              </button>
+                <option value="badge">배지</option>
+                <option value="nameColor">이름색</option>
+                <option value="profileBg">프로필 배경</option>
+                <option value="avatarFrame">아바타 프레임</option>
+              </select>
+            </label>
+            <label className="admin-field">
+              <span>스타일</span>
+              <input
+                value={draft.style}
+                onChange={(e) => setDraft((prev) => ({ ...prev, style: e.target.value }))}
+                placeholder="#FFD700 또는 linear-gradient(...)"
+              />
+            </label>
+            <label className="admin-field admin-field-wide">
+              <span>설명</span>
+              <textarea
+                value={draft.description}
+                onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="상품 설명을 입력해 주세요."
+              />
+            </label>
+          </div>
+
+          <div className="admin-preview-card">
+            <div className="admin-preview-header">
+              <Palette size={16} />
+              <span>상품 미리보기</span>
+            </div>
+            <div className="shop-preview-card">
+              <div className="shop-preview-visual">
+                {draft.type === 'badge' && <div className="shop-preview-badge">{draft.name || 'NEW BADGE'}</div>}
+                {draft.type === 'nameColor' && (
+                  <div className="shop-preview-name" style={{ color: draft.style || '#6c5ce7' }}>
+                    Schooly Admin
+                  </div>
+                )}
+                {draft.type === 'profileBg' && <div className="shop-preview-bg" style={previewStyle} />}
+                {draft.type === 'avatarFrame' && (
+                  <div className="shop-preview-frame" style={previewStyle}>
+                    <div className="shop-preview-frame-inner" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="shop-preview-title">{draft.name || '상품 이름'}</div>
+                <div className="shop-preview-desc">{draft.description || '설명이 여기에 표시됩니다.'}</div>
+              </div>
             </div>
           </div>
-        ))}
+
+          <div className="admin-panel-actions">
+            {editingId && (
+              <button type="button" className="admin-btn dismiss" onClick={resetForm}>
+                수정 취소
+              </button>
+            )}
+            <button type="button" className="admin-btn approve" onClick={handleSave} disabled={shopSaving}>
+              {editingId ? <PencilLine size={16} /> : <Plus size={16} />}
+              {editingId ? '상품 저장' : '상품 등록'}
+            </button>
+          </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-header">
+            <span>판매 중인 상품 {shopItems.length}개</span>
+          </div>
+          <div className="admin-list">
+            {shopItems.length === 0 ? (
+              <div className="admin-empty">등록된 상품이 없습니다.</div>
+            ) : (
+              shopItems.map((item) => (
+                <div key={item.id} className="admin-list-card">
+                  <div className="admin-list-main">
+                    <div className="admin-inline-icon">
+                      <Ticket size={16} />
+                    </div>
+                    <div>
+                      <div className="admin-list-title">
+                        {item.name} <span className="admin-chip">{item.type}</span>
+                      </div>
+                      <div className="admin-list-description">{item.description}</div>
+                      <div className="admin-meta-row">
+                        <span>{(item.price ?? 0).toLocaleString()}P</span>
+                        <span>{item.style || '스타일 없음'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="admin-inline-actions">
+                    <button
+                      type="button"
+                      className="admin-btn"
+                      onClick={() => {
+                        setDraft({
+                          name: item.name || '',
+                          description: item.description || '',
+                          price: item.price || 0,
+                          type: item.type || 'badge',
+                          style: item.style || '',
+                        });
+                        setEditingId(item.id);
+                      }}
+                    >
+                      <PencilLine size={16} />
+                      수정
+                    </button>
+                    <button type="button" className="admin-btn delete" onClick={() => setDeleteTarget(item)}>
+                      <Trash2 size={16} />
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

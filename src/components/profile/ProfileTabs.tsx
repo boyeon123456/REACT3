@@ -1,37 +1,34 @@
-import { LayoutDashboard, PackageOpen, Settings, type LucideIcon } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import type { TabKey } from '../../types/profile';
 
 interface ProfileTabsProps {
-  activeTab: TabKey;
-  setActiveTab: (tab: TabKey) => void;
+  currentTab: TabKey;
+  isOwnProfile?: boolean;
+  profileUserId?: string;
 }
 
-const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
-  { key: 'overview', label: '프로필', icon: LayoutDashboard },
-  { key: 'inventory', label: '인벤토리', icon: PackageOpen },
-  { key: 'settings', label: '설정', icon: Settings },
+const tabs: { key: TabKey; label: string; ownPath: string; publicPath: (userId: string) => string; isPrivate?: boolean }[] = [
+  { key: 'posts', label: '게시글', ownPath: '/mypage', publicPath: (userId) => `/profile/${userId}` },
+  { key: 'activity', label: '활동', ownPath: '/mypage/activity', publicPath: (userId) => `/profile/${userId}/activity` },
+  { key: 'saved', label: '저장', ownPath: '/mypage/saved', publicPath: () => '/mypage/saved', isPrivate: true },
+  { key: 'inventory', label: '인벤토리', ownPath: '/mypage/inventory', publicPath: () => '/mypage/inventory', isPrivate: true },
 ];
 
-export default function ProfileTabs({ activeTab, setActiveTab }: ProfileTabsProps) {
-  return (
-    <section className="profile-tabs" role="tablist" aria-label="프로필 탭">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
+export default function ProfileTabs({ currentTab, isOwnProfile = true, profileUserId = '' }: ProfileTabsProps) {
+  const visibleTabs = tabs.filter((tab) => isOwnProfile || !tab.isPrivate);
 
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            className={`profile-tab-button ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            <Icon size={17} />
-            {tab.label}
-          </button>
-        );
-      })}
-    </section>
+  return (
+    <nav className="profile-simple-tabs" aria-label="프로필 콘텐츠">
+      {visibleTabs.map((tab) => (
+        <NavLink
+          key={tab.key}
+          to={isOwnProfile ? tab.ownPath : tab.publicPath(profileUserId)}
+          end={tab.key === 'posts'}
+          className={`profile-simple-tab ${currentTab === tab.key ? 'active' : ''}`}
+        >
+          {tab.label}
+        </NavLink>
+      ))}
+    </nav>
   );
 }

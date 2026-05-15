@@ -1,361 +1,541 @@
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ThumbsUp, MessageCircle, Eye, LayoutGrid, List, Image, Search, Flame, ChevronDown, Globe, School } from 'lucide-react';
-import FloatingAction from '../components/ui/FloatingAction';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Bookmark,
+  Eye,
+  Flame,
+  Image as ImageIcon,
+  MessageCircle,
+  PenLine,
+  Search,
+  ShieldCheck,
+  ThumbsUp,
+  X,
+} from 'lucide-react';
+import { collection, doc, getDoc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
-import { useAuthStore } from '../store/authStore';
-import { BOARD_TAG_COLORS } from '../constants/boardUi';
+import { useAuthStore, type User } from '../store/authStore';
+import StorageImage from '../components/media/StorageImage';
+import { getVisibleSchoolName } from '../lib/schoolPrivacy';
+import {
+  BOARD_FILTERS,
+  BOARD_SORT_OPTIONS,
+  type BoardKey,
+  type BoardScope,
+  type BoardSort,
+  formatBoardDate,
+  normalizePost,
+  type NormalizedPost,
+} from '../constants/boardUi';
 import './Board.css';
 
-const categories = ['전체', '1학년', '2학년', '3학년', '학생회', '자유게시판', '공지사항'];
-const filters = ['최신순', '인기순', '댓글많은순'];
+const LOAD_SIZE = 80;
+const DESKTOP_INITIAL_VISIBLE = 25;
+const MOBILE_INITIAL_VISIBLE = 12;
+const MOBILE_QUERY = '(max-width: 768px)';
+type BoardFilter = 'all' | BoardKey;
+type ShopItemRow = {
+  id: string;
+  style?: string;
+};
+type AuthorProfile = Pick<User, 'id' | 'schoolCode' | 'schoolName' | 'settings'>;
 
-const tagColors = BOARD_TAG_COLORS;
+const isBoardFilter = (value: string | null): value is BoardFilter =>
+  value === 'all' || BOARD_FILTERS.some((board) => board.key === value);
+
+const isBoardScope = (value: string | null): value is BoardScope => value === 'global' || value === 'school';
+
+const isBoardSort = (value: string | null): value is BoardSort =>
+  BOARD_SORT_OPTIONS.some((option) => option.key === value);
+
+function getInitialVisibleLimit() {
+  if (typeof window === 'undefined') return DESKTOP_INITIAL_VISIBLE;
+  return window.matchMedia(MOBILE_QUERY).matches ? MOBILE_INITIAL_VISIBLE : DESKTOP_INITIAL_VISIBLE;
+}
 
 export default function Board() {
   const { user } = useAuthStore();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
-  const [shopItemsMap, setShopItemsMap] = useState<Record<string, any>>({});
-  const [activeCat, setActiveCat] = useState('전체');
-  const [activeFilter, setActiveFilter] = useState('최신순');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [boardMode, setBoardMode] = useState<'전국' | '우리학교'>('전국');
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [visibleLimit, setVisibleLimit] = useState(12);
-
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    if (val) {
-      setSearchParams({ search: val });
-    } else {
-      setSearchParams(new URLSearchParams());
-    }
-  };
-
-  const handleTagClick = (e: React.MouseEvent, tag: string) => {
-    e.preventDefault();
-    const val = `#${tag}`;
-    setSearchQuery(val);
-    setSearchParams({ search: val });
-  };
-
-  // 인기 게시글 (Top 3)
-  useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(3));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setTrendingPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 실시간 게시글 가져오기 (서버 사이드 필터링)
-  useEffect(() => {
-    setLoading(true);
-    let q = query(collection(db, 'posts'));
-
-    // 1. 기본 필터링 (전국/우리학교)
-    const privateCats = ['1학년', '2학년', '3학년', '학생회'];
-    const isPrivateCat = privateCats.includes(activeCat);
-
-    if (boardMode === '우리학교' || isPrivateCat) {
-      // 우리학교 모드이거나, 학년별/학생회 카테고리를 선택했다면 무조건 내 학교 글만!
-      if (user?.schoolCode) {
-        q = query(q, where('schoolCode', '==', user.schoolCode));
-      } else {
-        // 학교 정보가 없으면 아무것도 보여주지 않음 (보안)
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-    } else {
-      // 전국 모드 + 공용 카테고리 (자유/공지 등)
-      q = query(q, where('isPublic', '==', true));
-    }
-
-    // 2. 카테고리 필터 (이미 1번에서 schoolCode로 격리했으므로 추가 필터링만 수행)
-    if (activeCat !== '전체') {
-      q = query(q, where('board', '==', activeCat));
-    }
-
-    // 3. 정렬 (고정글 우선 노출을 위해 isPinned 정렬을 추가하고 싶지만, 
-    // Firestore 복합 쿼리 제한으로 인해 'created_at' 기준으로 먼저 가져오고 
-    // 고정글 정렬은 클라이언트에서 수행하거나, 단순 created_at 정렬 유지)
-    if (activeFilter === '최신순') {
-      q = query(q, orderBy('created_at', 'desc'));
-    } else if (activeFilter === '인기순') {
-      q = query(q, orderBy('likes', 'desc'), orderBy('created_at', 'desc'));
-    } else if (activeFilter === '댓글많은순') {
-      q = query(q, orderBy('comments', 'desc'), orderBy('created_at', 'desc'));
-    }
-
-    q = query(q, limit(visibleLimit));
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
-      
-      // 고정글(pinned)을 상단으로 올리는 최종 정렬은 클라이언트에서 수행 (인덱스 최소화)
-      const sorted = [...data].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return 0;
-      });
-      
-      setPosts(sorted);
-      setLoading(false);
-    }, (err) => {
-      console.error('Board filter query error:', err);
-      // 인덱스 미생성 시 안내 (개발자 콘솔 확인 권장)
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [activeCat, activeFilter, boardMode, user?.schoolCode, visibleLimit]);
-
-  // 상점 아이템 정보 로드
-  useEffect(() => {
-    const unsubItems = onSnapshot(collection(db, 'shop_items'), (snap) => {
-      const itemMap: any = {};
-      snap.forEach(d => { itemMap[d.id] = { id: d.id, ...d.data() }; });
-      setShopItemsMap(itemMap);
-    });
-    return () => unsubItems();
-  }, []);
-
-  const formatDate = (ts: number) => {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
-  const filtered = posts.filter(p => {
-    const term = searchQuery.toLowerCase();
-    const matchesSearch = !term ? true : (
-      (p.title && p.title.toLowerCase().includes(term)) ||
-      (p.content && p.content.toLowerCase().includes(term)) ||
-      (p.tags && p.tags.some((tag: string) => tag.toLowerCase().includes(term.replace(/^#/, ''))))
-    );
-    return matchesSearch;
+  const [posts, setPosts] = useState<NormalizedPost[]>([]);
+  const [trendingPosts, setTrendingPosts] = useState<NormalizedPost[]>([]);
+  const [shopItemsMap, setShopItemsMap] = useState<Record<string, ShopItemRow>>({});
+  const [authorProfiles, setAuthorProfiles] = useState<Record<string, AuthorProfile>>({});
+  const [loading, setLoading] = useState(true);
+  const [activeBoard, setActiveBoard] = useState<BoardFilter>(() => {
+    const board = searchParams.get('board');
+    return isBoardFilter(board) ? board : 'all';
   });
+  const [scope, setScope] = useState<BoardScope>(() => {
+    const nextScope = searchParams.get('scope');
+    return isBoardScope(nextScope) ? nextScope : 'global';
+  });
+  const [sort, setSort] = useState<BoardSort>(() => {
+    const nextSort = searchParams.get('sort');
+    return isBoardSort(nextSort) ? nextSort : 'latest';
+  });
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('search') || '');
+  const [visibleLimit, setVisibleLimit] = useState(() => getInitialVisibleLimit());
+  const canUseSchool = Boolean(user?.isStudent && user?.schoolCode);
+  const userSchoolCode = user?.schoolCode;
 
-  // Client side sorting is no longer needed as we do it in server query
-  // (But kept for safety if query fails)
+  const resetVisibleLimit = useCallback(() => {
+    setVisibleLimit(getInitialVisibleLimit());
+  }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'), limit(LOAD_SIZE));
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setPosts(snap.docs.map((entry) => normalizePost(entry.id, entry.data())));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Board subscription error:', error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 220);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!user) {
+      setShopItemsMap({});
+      return undefined;
+    }
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'shop_items'),
+      (snap) => {
+        const next: Record<string, ShopItemRow> = {};
+        snap.forEach((entry) => {
+          next[entry.id] = { id: entry.id, ...(entry.data() as Omit<ShopItemRow, 'id'>) };
+        });
+        setShopItemsMap(next);
+      },
+      (error) => console.error('Shop items subscription error:', error)
+    );
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'posts'), orderBy('likes', 'desc'), limit(8));
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setTrendingPosts(snap.docs.map((entry) => normalizePost(entry.id, entry.data())));
+      },
+      (error) => console.error('Trending subscription error:', error)
+    );
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const authorIds = Array.from(
+      new Set(
+        [...posts, ...trendingPosts]
+          .map((post) => post.authorId)
+          .filter((authorId): authorId is string => Boolean(authorId))
+      )
+    ).filter((authorId) => !authorProfiles[authorId]);
+
+    if (authorIds.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      authorIds.map(async (authorId) => {
+        const snap = await getDoc(doc(db, 'users', authorId));
+        return snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<User, 'id'>) } as AuthorProfile) : null;
+      })
+    )
+      .then((profiles) => {
+        if (cancelled) return;
+        setAuthorProfiles((current) => {
+          const next = { ...current };
+          profiles.forEach((profile) => {
+            if (profile) next[profile.id] = profile;
+          });
+          return next;
+        });
+      })
+      .catch((error) => console.error('Author profile load error:', error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authorProfiles, posts, trendingPosts]);
+
+  useEffect(() => {
+    const board = searchParams.get('board');
+    const nextBoard = isBoardFilter(board) ? board : 'all';
+    if (nextBoard !== activeBoard) {
+      const timeout = window.setTimeout(() => setActiveBoard(nextBoard), 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const nextScopeParam = searchParams.get('scope');
+    const nextScope = isBoardScope(nextScopeParam) ? nextScopeParam : 'global';
+    if (nextScope !== scope) {
+      const timeout = window.setTimeout(() => setScope(nextScope), 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const nextSortParam = searchParams.get('sort');
+    const nextSort = isBoardSort(nextSortParam) ? nextSortParam : 'latest';
+    if (nextSort !== sort) {
+      const timeout = window.setTimeout(() => setSort(nextSort), 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const nextSearch = searchParams.get('search') || '';
+    if (nextSearch !== searchQuery) {
+      const timeout = window.setTimeout(() => {
+        setSearchQuery(nextSearch);
+        setDebouncedSearchQuery(nextSearch);
+      }, 0);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [activeBoard, scope, searchParams, searchQuery, sort]);
+
+  useEffect(() => {
+    if (scope === 'school' && !canUseSchool) {
+      const timeout = window.setTimeout(() => setScope('global'), 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const next = new URLSearchParams();
+    if (activeBoard !== 'all') next.set('board', activeBoard);
+    if (scope !== 'global') next.set('scope', scope);
+    if (sort !== 'latest') next.set('sort', sort);
+    if (debouncedSearchQuery.trim()) next.set('search', debouncedSearchQuery);
+
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [activeBoard, canUseSchool, debouncedSearchQuery, scope, searchParams, setSearchParams, sort]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    resetVisibleLimit();
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    resetVisibleLimit();
+  };
+
+  const keyword = debouncedSearchQuery.trim().toLowerCase().replace(/^#/, '');
+  const filtered = useMemo(
+    () =>
+      posts
+        .filter((post) => {
+      if (scope === 'school') {
+        if (!userSchoolCode) return false;
+        if (post.scope !== 'school' || post.schoolCode !== userSchoolCode) return false;
+      } else if (post.scope !== 'global') {
+        return false;
+      }
+
+      if (activeBoard !== 'all' && post.boardKey !== activeBoard) return false;
+      if (!keyword) return true;
+
+      return (
+        post.title.toLowerCase().includes(keyword) ||
+        post.content.toLowerCase().includes(keyword) ||
+        post.authorDisplayName.toLowerCase().includes(keyword) ||
+        post.tags.some((tag) => tag.toLowerCase().includes(keyword))
+      );
+        })
+        .sort((a, b) => {
+          if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+          if (sort === 'popular') return b.likes - a.likes || b.createdAt - a.createdAt;
+          if (sort === 'comments') return b.comments - a.comments || b.createdAt - a.createdAt;
+          return b.createdAt - a.createdAt;
+        }),
+    [activeBoard, keyword, posts, scope, sort, userSchoolCode]
+  );
+
+  const visiblePosts = useMemo(() => filtered.slice(0, visibleLimit), [filtered, visibleLimit]);
+  const visibleTrending = useMemo(
+    () =>
+      trendingPosts
+        .filter((post) => post.scope === 'global' || (userSchoolCode && post.schoolCode === userSchoolCode))
+        .slice(0, 4),
+    [trendingPosts, userSchoolCode]
+  );
+
+  const getAuthorBannerStyle = useCallback((post: NormalizedPost) => {
+    if (post.anonymous) return undefined;
+    const profileBgId = post.authorEquipped.profileBg;
+    return profileBgId ? shopItemsMap[profileBgId]?.style || '#00aeff' : '#00aeff';
+  }, [shopItemsMap]);
+
+  const openAuthorProfile = useCallback(
+    (event: MouseEvent | KeyboardEvent, post: NormalizedPost) => {
+      if (!post.authorId || post.anonymous) return;
+      event.preventDefault();
+      event.stopPropagation();
+      navigate(post.authorId === user?.id ? '/mypage' : `/profile/${post.authorId}`);
+    },
+    [navigate, user?.id]
+  );
 
   return (
     <div className="board-page animate-fade-in">
-      <div className="board-header">
-        <h1 className="page-title">게시판</h1>
-        <p className="page-desc">전국의 모든 이야기를 자유롭게 나눠보세요.</p>
+      <section className="board-hero">
+        <div>
+          <p className="board-kicker">Schooly Board</p>
+          <h1>정돈된 학교 커뮤니티 보드</h1>
+          <p className="board-subtitle">찾기 쉽고 읽기 편한 구조로 전체 글과 우리 학교 글을 빠르게 오갈 수 있습니다.</p>
+        </div>
+        <Link to="/write" className="board-write-button">
+          <PenLine size={18} />
+          새 글 작성
+        </Link>
+      </section>
 
-        {/* 전국 / 우리학교 모드 탭 */}
-        <div className="board-mode-tabs">
+      <section className="board-toolbar" aria-label="게시판 필터">
+        <div className="board-scope-tabs">
           <button
-            className={`board-mode-tab ${boardMode === '전국' ? 'active' : ''}`}
-            onClick={() => setBoardMode('전국')}
+            className={scope === 'global' ? 'active' : ''}
+            onClick={() => {
+              setScope('global');
+              resetVisibleLimit();
+            }}
+            type="button"
           >
-            <Globe size={16} /> 전국 게시판
+            전체 보드
           </button>
           <button
-            className={`board-mode-tab ${boardMode === '우리학교' ? 'active' : ''}`}
-            onClick={() => setBoardMode('우리학교')}
-            disabled={!user?.isStudent || !user?.schoolCode}
-            title={!user?.isStudent || !user?.schoolCode ? '학교 정보를 등록하면 이용할 수 있어요' : ''}
+            className={scope === 'school' ? 'active' : ''}
+            onClick={() => {
+              setScope('school');
+              resetVisibleLimit();
+            }}
+            disabled={!canUseSchool}
+            title={canUseSchool ? user?.schoolName : '마이페이지에서 학교 정보를 등록하면 사용할 수 있습니다.'}
+            type="button"
           >
-            <School size={16} />
-            {user?.schoolName ? `${user.schoolName}` : '우리 학교'}
+            우리 학교
           </button>
         </div>
 
-        {/* 우리 학교 모드인데 학교 미등록 시 안내 */}
-        {boardMode === '우리학교' && (!user?.isStudent || !user?.schoolCode) && (
-          <div className="board-school-notice">
-            마이페이지에서 학교 정보를 등록하면 같은 학교 친구들의 글만 볼 수 있어요! 🏫
-          </div>
-        )}
-
-        <div className="board-search-bar" style={{ marginTop: '24px', position: 'relative', maxWidth: '600px', margin: '24px auto 0' }}>
-          <Search size={18} style={{ position: 'absolute', left: '16px', top: '14px', color: 'var(--text-muted)' }} />
+        <label className="board-search">
+          <Search size={18} />
           <input
-            type="text"
-            placeholder="궁금한 이야기나 해시태그를 검색해보세요..."
+            type="search"
             value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '20px', border: '1px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '15px', outline: 'none', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)' }}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder="제목, 내용, 작성자, 태그 검색"
           />
-        </div>
-      </div>
+          {searchQuery && (
+            <button type="button" className="board-search-clear" onClick={handleClearSearch} aria-label="검색 초기화">
+              <X size={14} />
+            </button>
+          )}
+        </label>
+      </section>
 
-      {/* 인기 게시글(Trending) 섹션 */}
-      {searchQuery === '' && activeCat === '전체' && trendingPosts.length > 0 && (
-        <div className="trending-section" style={{ marginBottom: '32px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Flame size={20} color="#ff4757" /> 이번 주 베스트 게시글
-          </h2>
-          <div className="trending-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            {trendingPosts.map(post => (
-              <Link to={`/post/${post.id}`} key={`trend-${post.id}`} style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }} className="highlight-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: tagColors[post.board] || 'var(--primary)', background: `${tagColors[post.board] || 'var(--primary)'}20`, padding: '4px 10px', borderRadius: '12px' }}>{post.board}</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatDate(post.created_at)}</span>
-                </div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: '12px 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.title}</h3>
-                <div style={{ display: 'flex', gap: '12px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ThumbsUp size={14} color="#ff4757" /> {post.likes}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MessageCircle size={14} /> {post.comments}</span>
-                </div>
+      {scope === 'school' && !canUseSchool && (
+        <div className="board-notice">학교 정보를 등록하면 같은 학교 친구들과 학년 게시판까지 함께 볼 수 있습니다.</div>
+      )}
+
+      {visibleTrending.length > 0 && !searchQuery && (
+        <section className="board-trending" aria-label="인기 게시글">
+          <div className="section-title-row">
+            <h2>
+              <Flame size={18} />
+              지금 많이 보는 글
+            </h2>
+          </div>
+          <div className="trend-list">
+            {visibleTrending.map((post) => (
+              <Link to={`/post/${post.id}`} className="trend-item" key={post.id}>
+                <span className="trend-board">{post.boardLabel}</span>
+                <strong>{post.title}</strong>
+                <span>
+                  <ThumbsUp size={13} />
+                  {post.likes}
+                </span>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="board-nav">
-        <div className="category-tabs">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              className={`cat-tab ${activeCat === cat ? 'active' : ''}`}
-              onClick={() => setActiveCat(cat)}
-              style={activeCat === cat && cat !== '전체' ? { backgroundColor: tagColors[cat], borderColor: tagColors[cat] } : {}}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <div className="board-controls">
-          <div className="filter-tabs">
-            {filters.map(f => (
-              <button key={f} className={`filter-tab ${activeFilter === f ? 'active' : ''}`} onClick={() => setActiveFilter(f)}>{f}</button>
+      <section className="board-tabs" aria-label="게시판 카테고리">
+        {BOARD_FILTERS.map((board) => (
+          <button
+            type="button"
+            key={board.key}
+            className={activeBoard === board.key ? 'active' : ''}
+            style={activeBoard === board.key ? { borderColor: board.color, color: board.color } : undefined}
+            onClick={() => {
+              setActiveBoard(board.key);
+              resetVisibleLimit();
+            }}
+          >
+            {board.label}
+          </button>
+        ))}
+      </section>
+
+      <section className="board-list-shell">
+        <div className="board-list-head">
+          <div>
+            <strong>{filtered.length.toLocaleString()}</strong>
+            <span>개의 글</span>
+          </div>
+          <div className="board-sort-tabs">
+            {BOARD_SORT_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.key}
+                className={sort === option.key ? 'active' : ''}
+                onClick={() => {
+                  setSort(option.key);
+                  resetVisibleLimit();
+                }}
+              >
+                {option.label}
+              </button>
             ))}
           </div>
-          <div className="view-toggle">
-            <button className={`toggle-btn ${viewMode === 'card' ? 'active' : ''}`} onClick={() => setViewMode('card')}><LayoutGrid size={16} /></button>
-            <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><List size={16} /></button>
-          </div>
         </div>
-      </div>
 
-      <div className="board-count">총 <strong>{filtered.length}</strong>개의 게시글</div>
+        {loading ? (
+          <div className="board-empty">게시글을 불러오는 중입니다.</div>
+        ) : visiblePosts.length === 0 ? (
+          <div className="board-empty">조건에 맞는 게시글이 없습니다.</div>
+        ) : (
+          <div className="board-list">
+            {visiblePosts.map((post) => {
+              const authorBannerStyle = getAuthorBannerStyle(post);
+              const rowStyle = authorBannerStyle ? ({ '--author-banner': authorBannerStyle } as CSSProperties) : undefined;
+              const authorProfile = post.authorId ? authorProfiles[post.authorId] : undefined;
+              const visibleSchoolName = authorProfile
+                ? getVisibleSchoolName(authorProfile, user)
+                : post.authorId
+                  ? ''
+                  : getVisibleSchoolName(
+                      {
+                        id: '',
+                        schoolCode: post.schoolCode || '',
+                        schoolName: post.schoolName || '',
+                      },
+                      user
+                    );
 
-      {loading ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>로딩 중...</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: '#888', background: '#fff', borderRadius: '12px' }}>
-          아직 작성된 게시글이 없습니다. 첫 번째 글을 남겨보세요!
-        </div>
-      ) : viewMode === 'card' ? (
-        <div className="board-grid">
-          {filtered.map((post, idx) => (
-            <Link to={`/post/${post.id}`} key={post.id} className={`board-card ${post.isPinned ? 'pinned' : ''}`} style={{ animationDelay: `${idx * 0.05}s` }}>
-              <div className="card-top">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {post.isPinned && <span className="pin-badge">📌 공지</span>}
-                  <span className="card-tag" style={{ color: tagColors[post.board] || 'var(--primary)' }}>{post.board}</span>
-                  {boardMode === '전국' && post.schoolName && (
-                    <span className="post-school-badge">🏫 {post.schoolName}</span>
-                  )}
-                </div>
-                <span className="card-time">{formatDate(post.created_at)}</span>
-              </div>
-
-              {post.imageUrl && (
-                <div className="card-thumb">
-                  <img src={post.imageUrl} alt="thumbnail" />
-                </div>
-              )}
-              <h3 className="card-title">{post.title}</h3>
-              <p className="card-content">{post.content}</p>
-
-              {/* 해시태그 표시 영역 */}
-              {post.tags && post.tags.length > 0 && (
-                <div className="card-tags" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {post.tags.slice(0, 3).map((tag: string, i: number) => (
-                    <span
-                      key={i}
-                      onClick={(e) => handleTagClick(e, tag)}
-                      style={{ fontSize: '12px', color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 8px', borderRadius: '10px', cursor: 'pointer' }}
+              return (
+                <Link
+                  to={`/post/${post.id}`}
+                  className={`board-row ${post.isPinned ? 'pinned' : ''} ${authorBannerStyle ? 'has-author-banner' : ''}`}
+                  style={rowStyle}
+                  key={post.id}
+                >
+                  <div className="board-row-header">
+                    <div
+                      className={`board-author-avatar ${!post.anonymous && post.authorId ? 'clickable' : ''}`}
+                      aria-hidden="true"
+                      onClick={(event) => openAuthorProfile(event, post)}
                     >
-                      #{tag}
-                    </span>
-                  ))}
-                  {post.tags.length > 3 && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>+{post.tags.length - 3}</span>}
-                </div>
-              )}
+                      {post.authorDisplayName.slice(0, 1)}
+                    </div>
+                    <div className="board-author-info">
+                      <div className="board-author-line">
+                        <strong
+                          className={!post.anonymous && post.authorId ? 'board-author-profile-link' : undefined}
+                          role={!post.anonymous && post.authorId ? 'link' : undefined}
+                          tabIndex={!post.anonymous && post.authorId ? 0 : undefined}
+                          onClick={(event) => openAuthorProfile(event, post)}
+                          onKeyDown={(event) => {
+                            if ((event.key === 'Enter' || event.key === ' ') && !post.anonymous && post.authorId) {
+                              openAuthorProfile(event, post);
+                            }
+                          }}
+                        >
+                          {post.authorDisplayName}
+                        </strong>
+                        <time>{formatBoardDate(post.createdAt)}</time>
+                      </div>
+                      <div className="board-row-labels">
+                        {post.isPinned && (
+                          <span className="pin-label">
+                            <ShieldCheck size={13} />
+                            공지
+                          </span>
+                        )}
+                        <span className={`board-chip board-chip-${post.boardKey}`}>{post.boardLabel}</span>
+                        {visibleSchoolName && scope === 'global' && <span className="board-meta-pill">{visibleSchoolName}</span>}
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="card-bottom">
-                <div className="card-author-area">
-                  <div className="mini-avatar" style={{
-                    backgroundColor: post.authorEquipped?.nameColor ? `${shopItemsMap[post.authorEquipped.nameColor]?.style}22` : (tagColors[post.board] || '#ccc'),
-                    color: shopItemsMap[post.authorEquipped?.nameColor]?.style || '#fff',
-                    border: post.authorEquipped?.avatarFrame ? `2px solid ${shopItemsMap[post.authorEquipped.avatarFrame]?.style}` : 'none',
-                    boxShadow: post.authorEquipped?.avatarFrame ? `0 0 8px ${shopItemsMap[post.authorEquipped.avatarFrame]?.style}55` : 'none'
-                  }}>{(post.author || '익명')[0]}</div>
-                  <span className="card-author" style={{ color: shopItemsMap[post.authorEquipped?.nameColor]?.style || 'inherit', fontWeight: 700 }}>
-                    {post.author}
-                    {post.authorEquipped?.badge && (
-                      <span className="shop-badge-inline" style={{ marginLeft: '4px', background: shopItemsMap[post.authorEquipped.badge]?.style, color: 'white', fontSize: '9px', padding: '1px 4px', borderRadius: '3px', verticalAlign: 'middle' }}>
-                        {shopItemsMap[post.authorEquipped.badge]?.name}
-                      </span>
+                  <div className="board-row-body">
+                    <div className="board-row-main">
+                      <div className="board-row-title">
+                        <strong>{post.title}</strong>
+                        {post.imageUrl && <ImageIcon size={14} />}
+                        {post.comments > 0 && <span className="comment-badge">[{post.comments}]</span>}
+                      </div>
+                      {post.content && <p className="board-row-content">{post.content}</p>}
+                      {post.tags.length > 0 && (
+                        <div className="board-row-tags">
+                          {post.tags.slice(0, 3).map((tag) => (
+                            <span key={tag}>#{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {post.imageUrl && (
+                      <div className="board-row-thumb" aria-hidden="true">
+                        <StorageImage src={post.imageUrl} alt="" loading="lazy" />
+                      </div>
                     )}
-                  </span>
-                </div>
+                  </div>
 
-                <div className="card-metrics">
-                  <span className="metric"><ThumbsUp size={13} /> {post.likes}</span>
-                  <span className="metric"><MessageCircle size={13} /> {post.comments}</span>
-                  <span className="metric"><Eye size={13} /> {post.views}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="board-list-view">
-          {filtered.map((post, idx) => (
-            <Link to={`/post/${post.id}`} key={post.id} className={`board-list-item ${post.isPinned ? 'pinned' : ''}`} style={{ animationDelay: `${idx * 0.03}s` }}>
-              <div className="bl-tag-area">
-                {post.isPinned && <span className="pin-dot">●</span>}
-                <span className="bl-tag" style={{ color: tagColors[post.board] }}>{post.board}</span>
-              </div>
-              <div className="bl-main">
-                {post.imageUrl && <Image size={14} className="bl-img-icon" />}
-                <h4 className="bl-title">{post.title}</h4>
-                <span className="bl-comment-count">[{post.comments}]</span>
-                {boardMode === '전국' && post.schoolName && (
-                  <span className="post-school-badge" style={{ flexShrink: 0 }}>🏫 {post.schoolName}</span>
-                )}
-              </div>
+                  <div className="board-row-stats">
+                    <span>
+                      <ThumbsUp size={13} />
+                      좋아요 {post.likes}
+                    </span>
+                    <span>
+                      <MessageCircle size={13} />
+                      댓글 {post.comments}
+                    </span>
+                    <span>
+                      <Eye size={13} />
+                      조회 {post.views}
+                    </span>
+                    <span>
+                      <Bookmark size={13} />
+                      저장 {post.bookmarks}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-              <span className="bl-author">{post.author}</span>
-              <span className="bl-views"><Eye size={13} /> {post.views}</span>
-              <span className="bl-likes"><ThumbsUp size={13} /> {post.likes}</span>
-              <span className="bl-time">{formatDate(post.created_at)}</span>
-            </Link>
-          ))}
-        </div>
+      {filtered.length > visibleLimit && (
+        <button type="button" className="board-more-button" onClick={() => setVisibleLimit((prev) => prev + 25)}>
+          더 불러오기
+        </button>
       )}
-
-      {/* Pagination / 더보기 */}
-      {filtered.length >= visibleLimit && (
-        <div style={{ textAlign: 'center', marginTop: '40px' }}>
-          <button
-            onClick={() => setVisibleLimit(prev => prev + 12)}
-            style={{
-              background: 'var(--bg-card)', border: '1px solid var(--border-light)',
-              color: 'var(--text-main)', padding: '12px 32px', borderRadius: '20px',
-              fontSize: '15px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s',
-              display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: 'var(--shadow-sm)'
-            }}>
-            더 불러오기 <ChevronDown size={18} />
-          </button>
-        </div>
-      )}
-
-      <FloatingAction />
     </div>
   );
 }
