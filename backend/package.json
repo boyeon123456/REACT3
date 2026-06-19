@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
+    "migrate:anonymous-comments": "node scripts/migrateAnonymousComments.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,6 +15,7 @@
     "axios": "^1.15.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "firebase-admin": "^13.10.0",
     "sqlite3": "^6.0.1"
   }
 }

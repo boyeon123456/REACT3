@@ -1,0 +1,322 @@
+[
+  {
+    "id": "badge-fresh-start",
+    "name": "새싹 멤버",
+    "description": "처음 활동을 시작하는 멤버에게 어울리는 산뜻한 배지입니다.",
+    "price": 300,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #34d399, #10b981)"
+  },
+  {
+    "id": "badge-club-ace",
+    "name": "동아리 에이스",
+    "description": "커뮤니티 활동에 앞장서는 사용자에게 잘 어울리는 에너지 배지입니다.",
+    "price": 450,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #60a5fa, #2563eb)"
+  },
+  {
+    "id": "badge-golden-bell",
+    "name": "골든벨",
+    "description": "존재감 있게 반짝이는 프리미엄 무드의 대표 배지입니다.",
+    "price": 650,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #fbbf24, #f59e0b)"
+  },
+  {
+    "id": "namecolor-coral-punch",
+    "name": "코랄 펀치",
+    "description": "밝고 명랑한 코랄 톤으로 이름을 생기 있게 강조합니다.",
+    "price": 700,
+    "type": "nameColor",
+    "style": "#ff6b6b"
+  },
+  {
+    "id": "namecolor-sky-pop",
+    "name": "스카이 팝",
+    "description": "맑고 시원한 블루 컬러로 이름에 청량한 인상을 더합니다.",
+    "price": 850,
+    "type": "nameColor",
+    "style": "#3b82f6"
+  },
+  {
+    "id": "namecolor-violet-wave",
+    "name": "바이올렛 웨이브",
+    "description": "차분하면서도 또렷한 포인트를 주는 퍼플 계열 이름색입니다.",
+    "price": 1000,
+    "type": "nameColor",
+    "style": "#8b5cf6"
+  },
+  {
+    "id": "profilebg-sunset-track",
+    "name": "선셋 트랙",
+    "description": "따뜻한 노을빛이 흐르는 역동적인 프로필 배경입니다.",
+    "price": 1200,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #f97316, #ef4444)"
+  },
+  {
+    "id": "profilebg-mint-breeze",
+    "name": "민트 브리즈",
+    "description": "가볍고 청량한 분위기를 주는 민트 톤 그라데이션입니다.",
+    "price": 1350,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #2dd4bf, #22c55e)"
+  },
+  {
+    "id": "profilebg-midnight-glow",
+    "name": "미드나잇 글로우",
+    "description": "짙은 밤하늘과 네온 포인트가 섞인 깊이감 있는 배경입니다.",
+    "price": 1500,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #0f172a, #4338ca)"
+  },
+  {
+    "id": "avatarframe-bronze-ring",
+    "name": "브론즈 링",
+    "description": "부담 없이 쓰기 좋은 따뜻한 메탈릭 아바타 프레임입니다.",
+    "price": 1100,
+    "type": "avatarFrame",
+    "style": "#b45309"
+  },
+  {
+    "id": "avatarframe-neon-lime",
+    "name": "네온 라임",
+    "description": "한눈에 들어오는 밝은 포인트를 더해주는 네온 프레임입니다.",
+    "price": 1250,
+    "type": "avatarFrame",
+    "style": "#84cc16"
+  },
+  {
+    "id": "avatarframe-royal-gold",
+    "name": "로열 골드",
+    "description": "고급스러운 존재감을 주는 클래식 골드 프레임입니다.",
+    "price": 1450,
+    "type": "avatarFrame",
+    "style": "#f59e0b"
+  },
+  {
+    "id": "badge-study-spark",
+    "name": "스터디 스파크",
+    "description": "꾸준히 공부 기록을 쌓는 사용자에게 어울리는 반짝이는 배지입니다.",
+    "price": 400,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #38bdf8, #0ea5e9)"
+  },
+  {
+    "id": "badge-kind-helper",
+    "name": "친절한 도우미",
+    "description": "댓글과 답변으로 친구들을 도와주는 사용자에게 잘 어울립니다.",
+    "price": 800,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #f472b6, #ec4899)"
+  },
+  {
+    "id": "badge-night-owl",
+    "name": "나이트 아울",
+    "description": "늦은 시간에도 조용히 활동하는 사용자에게 어울리는 딥톤 배지입니다.",
+    "price": 1300,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #1e293b, #7c3aed)"
+  },
+  {
+    "id": "badge-campus-star",
+    "name": "캠퍼스 스타",
+    "description": "커뮤니티에서 눈에 띄는 존재감을 보여주는 사용자용 배지입니다.",
+    "price": 2100,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #facc15, #fb7185)"
+  },
+  {
+    "id": "badge-hi-five",
+    "name": "하이파이브",
+    "description": "가볍게 첫 꾸미기를 시작하기 좋은 밝은 응원 배지입니다.",
+    "price": 120,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #fb923c, #facc15)"
+  },
+  {
+    "id": "badge-good-vibes",
+    "name": "굿 바이브",
+    "description": "부담 없는 가격으로 산뜻한 분위기를 더하는 입문 배지입니다.",
+    "price": 220,
+    "type": "badge",
+    "style": "linear-gradient(135deg, #22c55e, #84cc16)"
+  },
+  {
+    "id": "namecolor-lemon-zest",
+    "name": "레몬 제스트",
+    "description": "산뜻한 노란빛으로 이름에 밝은 포인트를 더합니다.",
+    "price": 550,
+    "type": "nameColor",
+    "style": "#eab308"
+  },
+  {
+    "id": "namecolor-emerald-note",
+    "name": "에메랄드 노트",
+    "description": "차분한 에메랄드 톤으로 이름을 선명하게 보여줍니다.",
+    "price": 950,
+    "type": "nameColor",
+    "style": "#059669"
+  },
+  {
+    "id": "namecolor-rose-glow",
+    "name": "로즈 글로우",
+    "description": "부드러운 로즈 컬러로 이름에 따뜻한 분위기를 줍니다.",
+    "price": 1400,
+    "type": "nameColor",
+    "style": "#e11d48"
+  },
+  {
+    "id": "namecolor-cosmic-indigo",
+    "name": "코스믹 인디고",
+    "description": "깊은 인디고 톤으로 차분하고 또렷한 이름색을 만듭니다.",
+    "price": 1900,
+    "type": "nameColor",
+    "style": "#4f46e5"
+  },
+  {
+    "id": "namecolor-soft-gray",
+    "name": "소프트 그레이",
+    "description": "튀지 않지만 깔끔한 느낌을 주는 기본형 이름색입니다.",
+    "price": 180,
+    "type": "nameColor",
+    "style": "#64748b"
+  },
+  {
+    "id": "namecolor-fresh-green",
+    "name": "프레시 그린",
+    "description": "초반 포인트로 부담 없이 살 수 있는 싱그러운 이름색입니다.",
+    "price": 320,
+    "type": "nameColor",
+    "style": "#16a34a"
+  },
+  {
+    "id": "profilebg-cloudy-desk",
+    "name": "클라우디 데스크",
+    "description": "흰 구름과 부드러운 하늘빛이 섞인 편안한 프로필 배경입니다.",
+    "price": 900,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #e0f2fe, #93c5fd)"
+  },
+  {
+    "id": "profilebg-peach-diary",
+    "name": "피치 다이어리",
+    "description": "복숭아빛 그라데이션으로 따뜻하고 친근한 인상을 줍니다.",
+    "price": 1600,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #fed7aa, #fb7185)"
+  },
+  {
+    "id": "profilebg-aurora-hall",
+    "name": "오로라 홀",
+    "description": "보랏빛과 민트빛이 흐르는 몽환적인 프로필 배경입니다.",
+    "price": 1800,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #a78bfa, #2dd4bf)"
+  },
+  {
+    "id": "profilebg-library-lamp",
+    "name": "라이브러리 램프",
+    "description": "따뜻한 조명 아래 책상 분위기를 담은 차분한 배경입니다.",
+    "price": 2000,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #92400e, #f59e0b)"
+  },
+  {
+    "id": "profilebg-neon-locker",
+    "name": "네온 라커",
+    "description": "선명한 네온 컬러가 섞인 개성 강한 프로필 배경입니다.",
+    "price": 2300,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #06b6d4, #d946ef)"
+  },
+  {
+    "id": "profilebg-starlit-rooftop",
+    "name": "스타릿 루프탑",
+    "description": "밤하늘 별빛을 담은 프리미엄 무드의 프로필 배경입니다.",
+    "price": 2600,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #020617, #2563eb)"
+  },
+  {
+    "id": "profilebg-paper-note",
+    "name": "페이퍼 노트",
+    "description": "깔끔한 노트지 느낌의 가벼운 입문 프로필 배경입니다.",
+    "price": 260,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #f8fafc, #cbd5e1)"
+  },
+  {
+    "id": "profilebg-morning-bell",
+    "name": "모닝 벨",
+    "description": "연한 하늘빛과 노란 포인트가 섞인 산뜻한 배경입니다.",
+    "price": 480,
+    "type": "profileBg",
+    "style": "linear-gradient(135deg, #bae6fd, #fde68a)"
+  },
+  {
+    "id": "avatarframe-silver-pulse",
+    "name": "실버 펄스",
+    "description": "깔끔한 실버 톤으로 아바타를 선명하게 감싸는 프레임입니다.",
+    "price": 750,
+    "type": "avatarFrame",
+    "style": "#94a3b8"
+  },
+  {
+    "id": "avatarframe-candy-pop",
+    "name": "캔디 팝",
+    "description": "밝은 핑크 포인트로 귀엽고 경쾌한 느낌을 주는 프레임입니다.",
+    "price": 1150,
+    "type": "avatarFrame",
+    "style": "#f472b6"
+  },
+  {
+    "id": "avatarframe-ocean-ring",
+    "name": "오션 링",
+    "description": "푸른 바다빛으로 차분한 포인트를 주는 아바타 프레임입니다.",
+    "price": 1550,
+    "type": "avatarFrame",
+    "style": "#0284c7"
+  },
+  {
+    "id": "avatarframe-forest-line",
+    "name": "포레스트 라인",
+    "description": "짙은 초록색 라인으로 안정감 있는 분위기를 만듭니다.",
+    "price": 1750,
+    "type": "avatarFrame",
+    "style": "#15803d"
+  },
+  {
+    "id": "avatarframe-prism-edge",
+    "name": "프리즘 엣지",
+    "description": "강한 퍼플 포인트로 아바타를 또렷하게 강조하는 프레임입니다.",
+    "price": 2200,
+    "type": "avatarFrame",
+    "style": "#9333ea"
+  },
+  {
+    "id": "avatarframe-solar-crown",
+    "name": "솔라 크라운",
+    "description": "따뜻한 골드 오렌지 톤으로 특별한 존재감을 주는 프레임입니다.",
+    "price": 2500,
+    "type": "avatarFrame",
+    "style": "#f97316"
+  },
+  {
+    "id": "avatarframe-basic-line",
+    "name": "베이직 라인",
+    "description": "처음 장착하기 좋은 깔끔한 기본 아바타 프레임입니다.",
+    "price": 200,
+    "type": "avatarFrame",
+    "style": "#64748b"
+  },
+  {
+    "id": "avatarframe-sky-dot",
+    "name": "스카이 도트",
+    "description": "작은 하늘색 포인트로 아바타를 산뜻하게 감싸는 프레임입니다.",
+    "price": 360,
+    "type": "avatarFrame",
+    "style": "#38bdf8"
+  }
+]

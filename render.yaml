@@ -1,0 +1,22 @@
+previews:
+  generation: manual
+
+services:
+  - type: web
+    name: schooly-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: FRONTEND_URL
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: myschool-board
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
